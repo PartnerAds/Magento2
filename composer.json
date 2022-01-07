@@ -35,6 +35,7 @@
             "email": "jc@intelligodenmark.dk"
         }
     ],
+    "minimum-stability": "dev",
     "require": {
     },
     "autoload": {
