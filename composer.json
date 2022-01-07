@@ -1,5 +1,5 @@
 {
-    "name": "PartnerAds/Magento2",
+    "name": "partnerads/magento2",
     "description": "Tracks PartnerAds Magento2 Websites",
     "type": "magento2-module",
     "license": [
