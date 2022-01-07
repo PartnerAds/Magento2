@@ -1,0 +1,20 @@
+<?php
+/** @var \Partner\Module\Block\Script $block */
+?>
+
+<script type="text/x-magento-init">
+    {
+        "*": {
+            "Magento_Ui/js/core/app": {
+                "components": {
+                    "partner": {
+                        "component": "Partner_Module/js/partner",
+                        "url": "<?= /** @escapeNotVerified */ $block->getAjaxUrl() ?>",
+                        "partnerId": "<?= /** @escapeNotVerified */ $block->getPartnerId() ?>",
+                        "pacId": "<?= /** @escapeNotVerified */ $block->getPacId() ?>"
+                    }
+                }
+            }
+        }
+    }
+</script>

@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+    <default>
+        <partner_module>
+            <general>
+                <program_orderstate>processing</program_orderstate>
+                <mode>https://www.partner-ads.com/dk/leadtracks2s.php/</mode>
+                <export_mode>observer</export_mode>
+            </general>
+        </partner_module>
+    </default>
+</config>

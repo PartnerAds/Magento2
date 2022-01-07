@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <type name="Magento\Config\Model\Config">
+        <plugin name="saveConfig" type="Partner\Module\Model\Plugin\Config" sortOrder="10"/>
+    </type>
+    <type name="Magento\Sales\Api\OrderManagementInterface">
+        <plugin name="partner_order_management_after_place" type="Partner\Module\Model\Plugin\Sales\OrderManagementAfterPlace"/>
+    </type>
+    <preference for="Partner\Module\Api\ConfigInterface" type="Partner\Module\Model\Config"/>
+    <preference for="Partner\Module\Api\CsvHandlerInterface" type="Partner\Module\Model\Csv\Handler"/>
+    <type name="Partner\Module\Model\Logger\Handler">
+        <arguments>
+            <argument name="filesystem" xsi:type="object">Magento\Framework\Filesystem\Driver\File</argument>
+        </arguments>
+    </type>
+    <type name="Partner\Module\Model\Logger\Logger">
+        <arguments>
+            <argument name="name" xsi:type="string">partnerLogger</argument>
+            <argument name="handlers" xsi:type="array">
+                <item name="system" xsi:type="object">Partner\Module\Model\Logger\Handler</item>
+            </argument>
+        </arguments>
+    </type>
+</config>

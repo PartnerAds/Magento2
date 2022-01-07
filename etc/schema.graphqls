@@ -1,0 +1,12 @@
+type Query {
+PartnerAds (
+        partner_id: String @doc(description: "partner_id")
+		pac_id: String @doc(description: "pac_id")
+		order_id: String @doc(description: "order_id")
+    ): [PdCollection] @resolver(class: "Partner\\Module\\Model\\Resolver\\Partnerads") @doc(description: "Query for PartnerAds")
+}
+type PdCollection @doc(description: "The PartnerAds query with all information") {
+    partner_id : String  @doc(description: "partner_id")
+	pac_id : String  @doc(description: "pac_id")
+	order_id : String  @doc(description: "order_id")
+}

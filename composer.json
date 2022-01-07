@@ -1,0 +1,48 @@
+{
+    "name": "PartnerAds/Magento2",
+    "description": "Tracks PartnerAds Magento2 Websites",
+    "type": "magento2-module",
+    "license": [
+        "proprietary"
+    ],
+    "authors":[
+        {
+            "name":"Mihail Zdravkov",
+            "email":"michael.zdravkov@gmail.com"
+        },
+        {
+            "name":"Martin Hlavacka",
+            "email":"1028251@ucn.dk"
+        },
+        {
+            "name":"Grzegorz Lasak",
+            "email":"grzegorz.lasak@grzegorzlasak.com"
+        },
+        {
+            "name":"Paul-Daniel Savlovschi",
+            "email":"paul@wexo.dk"
+        },
+        {
+            "name": "Frank W. Weima",
+            "email": "frank@wexo.dk"
+        },
+        {
+            "name": "Martin René Sørensen",
+            "email": "mrs@wexo.dk"
+        },
+        {
+            "name": "Julian F. Christmas",
+            "email": "jc@intelligodenmark.dk"
+        }
+    ],
+    "require": {
+    },
+    "autoload": {
+        "files": [
+            "registration.php"
+        ],
+        "psr-4": {
+            "PartnerAds\\Magento2\\": ""
+        }
+    }
+}

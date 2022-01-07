@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <tab id="partner_module" translate="label" sortOrder="1000">
+            <label>Partner Ads Module</label>
+        </tab>
+        <section id="partner_module" translate="label" sortOrder="130" showInDefault="0" showInWebsite="0" showInStore="1">
+            <class>separator-top</class>
+            <label>Partner Ads Setup</label>
+            <tab>partner_module</tab>
+            <resource>Partner_Module::tracking_config</resource>
+            <group id="general" translate="label" type="text" sortOrder="10" showInDefault="0" showInWebsite="0" showInStore="1">
+                <label>Partner Ads Setup</label>
+                <field id="program_id" translate="label comment" sortOrder="10" showInDefault="0" showInWebsite="0" showInStore="1">
+                    <label>Your Program ID</label>
+                    <comment>Insert your Program ID here</comment>
+                </field>
+                <field id="program_type" translate="label comment" type="select" sortOrder="20" showInDefault="0" showInWebsite="0" showInStore="1">
+                    <label>Your Program Type</label>
+                    <comment>Select either sale or lead</comment>
+                    <source_model>Partner\Module\Model\System\Config\Select</source_model>
+                </field>
+                <field id="program_orderstate" translate="label" type="select" sortOrder="30" showInDefault="0" showInWebsite="0" showInStore="1">
+                    <label>Commit by Order State</label>
+                    <source_model>Partner\Module\Model\System\Config\State</source_model>
+                </field>
+                <field id="export_mode" translate="label" type="select" sortOrder="40" showInDefault="0" showInWebsite="0" showInStore="1">
+                    <label>Export Mode</label>
+                    <source_model>Partner\Module\Model\System\Config\Export\Mode</source_model>
+                    <comment>
+                        <model>Partner\Module\Model\System\Config\Comment\DownloadLink</model>
+                    </comment>
+                </field>
+                <field id="mode" translate="label" type="select" sortOrder="50" showInDefault="0" showInWebsite="0" showInStore="1">
+                    <label>Mode</label>
+                    <source_model>Partner\Module\Model\System\Config\Mode</source_model>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>
