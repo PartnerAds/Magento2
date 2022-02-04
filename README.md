@@ -1,13 +1,11 @@
 
 # PartnerAds - Magento 2.4+ Affiliate tracking
 
-PartnerAds tracking extension for Magento 2. 
 This extension adds the following functionality to Magento:
 
-- Track visitors from Partner Ads publishers via cookie 
-- Send order information to Partner Ads affiliate network depending on order status 
-- Possibility for communication Magento backend via GraphQL endpoints
-
+-   Track visitors from Partner Ads publishers via cookie
+-   Send order information to Partner Ads affiliate network depending on order status
+-   Possibility for communication Magento backend via GraphQL endpoints
 
 The plugin is tested and confirmed working on
 
@@ -26,6 +24,20 @@ The plugin is tested and confirmed working on
  - Setup Partner Program ID via Magento Admin panel
  - You are ready to go
 
-## Support & Bugs 
+### Module settings in Magento Admin
 
-Please contact supportdk@partner-ads.com for support and bug requests. 
+![Partner Ads Magento module settings in Magento backend](https://intelligo.link/jc/2022-02-3MQ23gE6kI.png)
+
+-   Login to Magento admin   
+-   Go to Stores - Configuration - Partner Ads Setup  
+-   Enter Partner Program ID   
+-   Change settings according to your stores setup
+
+### Multi store setup
+
+The Partner Ads module supports multi store setup per Magento’s normal requirements, therefore you are able to set individual Partner Ads program on a per store view basis via Magento admin.  
+  
+
+## Support & Bugs
+
+Please contact supportdk@partner-ads.com for support and bug requests.
