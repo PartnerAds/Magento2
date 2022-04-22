@@ -8,7 +8,7 @@
             <class>separator-top</class>
             <label>Partner Ads Setup</label>
             <tab>partner_module</tab>
-            <resource>Partner_Module::tracking_config</resource>
+            <resource>Partner_Module::system_config</resource>
             <group id="general" translate="label" type="text" sortOrder="10" showInDefault="0" showInWebsite="0" showInStore="1">
                 <label>Partner Ads Setup</label>
                 <field id="program_id" translate="label comment" sortOrder="10" showInDefault="0" showInWebsite="0" showInStore="1">
