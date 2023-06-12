@@ -38,6 +38,17 @@ The plugin is tested and confirmed working on
 The Partner Ads module supports multi store setup per Magento’s normal requirements, therefore you are able to set individual Partner Ads program on a per store view basis via Magento admin.  
   
 
+### Debugging
+Starting from version 2.1.0, we have made significant enhancements to the debug log functionality. To effectively debug Partner Ads tracking and communication with Partner Ads servers, please follow these steps:
+
+-   Login to Magento admin   
+-   Go to Stores - Configuration - Partner Ads Setup  
+-   Adjust the `Mode` setting to `Debug`
+-   Perform an order placement using valid `PACID` and `PARTNERID` values
+-   Monitor the request and response log in the `var/log/Partnerads.log` file
+
+Please remember to set `Mode` back to `Production` afterwards. 
+
 ## Support & Bugs
 
 Please contact supportdk@partner-ads.com for support and bug requests.

@@ -10,7 +10,7 @@ use Magento\Framework\Data\OptionSourceInterface;
 class Mode implements OptionSourceInterface
 {
     const TRACKING_URL = 'https://www.partner-ads.com/dk/leadtracks2s.php/';
-    const DEBUG_URL = 'https://dev:wexo@partneradshttp.dev9.wexohosting.com/';
+    const DEBUG_URL = 'https://www.partner-ads.com/dk/leadtracks2s.php/';
 
     /**
      * @return array

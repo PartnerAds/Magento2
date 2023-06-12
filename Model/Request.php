@@ -13,6 +13,7 @@ use Zend\Http\Request as ZendHttpRequest;
 use Zend\Stdlib\Parameters as ZendRequestParameters;
 use Zend\Http\Client as ZendHttpClient;
 use Zend\Http\Client\Adapter\Curl;
+use Partner\Module\Model\System\Config\Mode;
 
 class Request
 {
@@ -33,6 +34,11 @@ class Request
      * @var StoreManagerInterface
      */
     private $storeManager;
+    
+    /**
+     * @var  \Magento\Framework\App\Config\ScopeConfigInterface
+     */
+    protected $scopeConfig;
 
     /**
      * Request constructor.
@@ -43,11 +49,13 @@ class Request
     public function __construct(
         ConfigInterface $config,
         OrderRepositoryInterface $orderRepository,
-        StoreManagerInterface $storeManager
+        StoreManagerInterface $storeManager,
+        \Magento\Framework\App\Config\ScopeConfigInterface $scopeConfig
     ) {
         $this->config = $config;
         $this->orderRepository = $orderRepository;
         $this->storeManager = $storeManager;
+        $this->scopeConfig = $scopeConfig;
     }
 
     /**
@@ -62,8 +70,10 @@ class Request
         $programId = $this->config->getProgramId($store);
         $type = $this->config->getProgramType($store);
         $commitAtOrderStateSetting = $this->config->getProgramOrderState($store);
+    
         $requestUri = $this->config->getMode($store);
-
+        $requestUri = Mode::TRACKING_URL;
+        $this->debuggerOn("Endpoint = ".$requestUri, $this->config->getMode($store));
         // Set at least a default status when none/false/empty is given (set to STATE_PROCESSING)
         if (empty($commitAtOrderStateSetting) || !$commitAtOrderStateSetting) {
             $commitAtOrderState = Order::STATE_PROCESSING;
@@ -72,30 +82,53 @@ class Request
         }
 
         if (empty($programId)) {
+             $this->debuggerOn(
+                 'Cannot Export: #' . $order->getIncrementId() .
+                 ' Because Store: ' . $store->getCode() . ' Is missing valid "program_id".',
+                 $this->config->getMode($store)
+             );
             throw new SkipMessage('Cannot Export: #' . $order->getIncrementId() . ' Because Store: ' . $store->getCode() . ' Is missing valid "program_id".'); // @codingStandardsIgnoreLine
         }
 
         if (empty($type)) {
+             $this->debuggerOn(
+                 'Cannot Export: #' . $order->getIncrementId() .
+                 ' Because Store: ' . $store->getCode() . ' Is missing valid "program_type".',
+                 $this->config->getMode($store)
+             );
             throw new SkipMessage('Cannot Export: #' . $order->getIncrementId() . ' Because Store: ' . $store->getCode() . ' Is missing valid "program_type".'); // @codingStandardsIgnoreLine
         }
 
         if ($order->getState() !== $commitAtOrderState) {
+             $this->debuggerOn('Cannot Export: #' . $order->getIncrementId() .
+             ' Because Order State: "' . $order->getState() .
+             '" is not equal to Commit State: "' . $commitAtOrderState .
+             '".', $this->config->getMode($store));
             throw new SkipMessage('Cannot Export: #' . $order->getIncrementId() . ' Because Order State: "' . $order->getState() . '" is not equal to Commit State: "' . $commitAtOrderState . '".'); // @codingStandardsIgnoreLine
         }
 
         if (0 != $order->getData(Attributes::ORDER_SENT)) {
+             $this->debuggerOn('Cannot Export: #' . $order->getIncrementId() .
+             ' Because it is already sent.');
             throw new SkipMessage('Cannot Export: #' . $order->getIncrementId() . ' Because it is already sent.'); // @codingStandardsIgnoreLine
         }
 
         if (!$order->hasData(Attributes::PARTNER_ID) || empty($order->getData(Attributes::PARTNER_ID))) {
+             $this->debuggerOn('Cannot Export: #' . $order->getIncrementId() .
+             ' It is missing a valid value in attribute "' . Attributes::PARTNER_ID .
+             '".', $this->config->getMode($store));
             throw new SkipMessage('Cannot Export: #' . $order->getIncrementId() . ' It is missing a valid value in attribute "' . Attributes::PARTNER_ID . '".'); // @codingStandardsIgnoreLine
         }
 
         if (!filter_var($requestUri, FILTER_VALIDATE_URL)) {
+             $this->debuggerOn('Cannot Export: #' . $order->getIncrementId() .
+             ' Because Store: ' . $store->getCode() . ' Is missing valid "mode".', $this->config->getMode($store));
             throw new SkipMessage('Cannot Export: #' . $order->getIncrementId() . ' Because Store: ' . $store->getCode() . ' Is missing valid "mode".'); // @codingStandardsIgnoreLine
         }
 
         if (in_array($order->getId(), $this->exporting)) {
+             $this->debuggerOn('Cannot Export: #' . $order->getIncrementId() .
+             'Because it is already exported.', $this->config->getMode($store));
             throw new SkipMessage('Cannot Export: #' . $order->getIncrementId() . 'Because it is already exported.'); // @codingStandardsIgnoreLine
         }
         $this->exporting[] = $order->getId();
@@ -106,8 +139,8 @@ class Request
         $request = new ZendHttpRequest();
         $request->setMethod(ZendHttpRequest::METHOD_GET);
         $request->setUri($requestUri);
-
-        $exportData = [
+        
+         $exportData = [
             'programid' => $programId,
             'type' => $type,
             'partnerid' => $partnerId,
@@ -116,41 +149,56 @@ class Request
             'varenummer' => 'x',
             'antal' => 1,
             'omprsalg' => $order->getGrandTotal() - $order->getShippingInclTax(),
-        ];
+         ];
+        
+         $this->debuggerOn("Request=".json_encode($exportData), $this->config->getMode($store));
 
-        $parameters = new ZendRequestParameters($exportData);
-        $request->setQuery($parameters);
+         $parameters = new ZendRequestParameters($exportData);
+         $request->setQuery($parameters);
 
-        $client = new ZendHttpClient();
-        $options = [
+         $client = new ZendHttpClient();
+         $options = [
             'adapter' => Curl::class,
             'curloptions' => [CURLOPT_FOLLOWLOCATION => true],
             'maxredirects' => 0,
             'timeout' => 10
-        ];
-        $client->setOptions($options);
+         ];
+         $client->setOptions($options);
+        
+         $response = $client->send($request);
+         $this->debuggerOn("Response=".$response, $this->config->getMode($store));
 
-        $response = $client->send($request);
-        $responseNumber = floor($response->getStatusCode() / 100);
+         $responseNumber = floor($response->getStatusCode() / 100);
 
-        if (2 == $responseNumber) {//check if response code is a 2XX code
-            $order->setData(Attributes::ORDER_SENT, 1);
+         if (2 == $responseNumber) {//check if response code is a 2XX code
+             $order->setData(Attributes::ORDER_SENT, 1);
+             $this->orderRepository->save($order);
 
-            $this->orderRepository->save($order);
+             $key = array_search($order->getId(), $this->exporting);
 
-            $key = array_search($order->getId(), $this->exporting);
+             if (false !== $key) {
+                 unset($this->exporting[$key]);
+             }
 
-            if (false !== $key) {
-                unset($this->exporting[$key]);
-            }
+             return true;
+         } else {
+             $failedExportException = new SkipMessage('Failed to export: #' . $order->getIncrementId() . '. Response: "' . $response->renderStatusLine() . '".'); // @codingStandardsIgnoreLine
 
-            return true;
-        } else {
-            $failedExportException = new SkipMessage('Failed to export: #' . $order->getIncrementId() . '. Response: "' . $response->renderStatusLine() . '".'); // @codingStandardsIgnoreLine
+             $failedExportException->setExportData($exportData);
 
-            $failedExportException->setExportData($exportData);
-
-            throw $failedExportException;
+             throw $failedExportException;
+         }
+    }
+    
+    public function debuggerOn($str, $requestUri = null)
+    {
+        
+        if ($requestUri == Mode::DEBUG_URL) {
+            
+            $writer = new \Zend_Log_Writer_Stream(BP . '/var/log/Partnerads.log');
+            $logger = new \Zend_Log();
+            $logger->addWriter($writer);
+            $logger->info($str);
         }
     }
 }
