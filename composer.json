@@ -1,50 +1,52 @@
 {
-    "name": "partnerads/magento2",
-    "description": "Magento 2 module for tracking affilate sales through Partner Ads network",
-    "type": "magento2-module",
-    "version": "2.1.0",
-    "license": [
-        "proprietary"
-    ],
-    "authors":[
-        {
-            "name":"Mihail Zdravkov",
-            "email":"michael.zdravkov@gmail.com"
-        },
-        {
-            "name":"Martin Hlavacka",
-            "email":"1028251@ucn.dk"
-        },
-        {
-            "name":"Grzegorz Lasak",
-            "email":"grzegorz.lasak@grzegorzlasak.com"
-        },
-        {
-            "name":"Paul-Daniel Savlovschi",
-            "email":"paul@wexo.dk"
-        },
-        {
-            "name": "Frank W. Weima",
-            "email": "frank@wexo.dk"
-        },
-        {
-            "name": "Martin René Sørensen",
-            "email": "mrs@wexo.dk"
-        },
-        {
-            "name": "Julian F. Christmas",
-            "email": "jc@intelligodenmark.dk"
-        }
-    ],
-    "minimum-stability": "dev",
-    "require": {
+  "name": "partnerads/magento2",
+  "description": "Magento 2 module for tracking affilate sales through Partner Ads network",
+  "type": "magento2-module",
+  "version": "2.2",
+  "require": {
+    "magento/product-community-edition": ">=2.3",
+    "magento/product-enterprise-edition": ">=2.3"
+  },
+  "license": [
+    "proprietary"
+  ],
+  "authors": [
+    {
+      "name": "Mihail Zdravkov",
+      "email": "michael.zdravkov@gmail.com"
     },
-    "autoload": {
-        "files": [
-            "registration.php"
-        ],
-        "psr-4": {
-            "Partner\\Module\\": ""
-        }
+    {
+      "name": "Martin Hlavacka",
+      "email": "1028251@ucn.dk"
+    },
+    {
+      "name": "Grzegorz Lasak",
+      "email": "grzegorz.lasak@grzegorzlasak.com"
+    },
+    {
+      "name": "Paul-Daniel Savlovschi",
+      "email": "paul@wexo.dk"
+    },
+    {
+      "name": "Frank W. Weima",
+      "email": "frank@wexo.dk"
+    },
+    {
+      "name": "Martin René Sørensen",
+      "email": "mrs@wexo.dk"
+    },
+    {
+      "name": "Julian F. Christmas",
+      "email": "jc@intelligodenmark.dk"
     }
+  ],
+  "minimum-stability": "dev",
+  "autoload": {
+    "files": [
+      "registration.php"
+    ],
+    "psr-4": {
+      "Partner\\Module\\": ""
+    }
+  }
 }
