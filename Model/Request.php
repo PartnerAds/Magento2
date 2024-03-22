@@ -13,6 +13,7 @@ use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
 use Magento\Store\Model\StoreManagerInterface;
 use Partner\Module\Api\ConfigInterface;
+use Partner\Module\Model\Logger\Logger;
 use Partner\Module\Model\System\Config\Mode;
 
 class Request
@@ -40,6 +41,8 @@ class Request
      */
     protected $scopeConfig;
 
+    private Logger $logger;
+
     /**
      * Request constructor.
      *
@@ -51,12 +54,14 @@ class Request
         ConfigInterface $config,
         OrderRepositoryInterface $orderRepository,
         StoreManagerInterface $storeManager,
-        \Magento\Framework\App\Config\ScopeConfigInterface $scopeConfig
+        \Magento\Framework\App\Config\ScopeConfigInterface $scopeConfig,
+        Logger $logger
     ) {
         $this->config = $config;
         $this->orderRepository = $orderRepository;
         $this->storeManager = $storeManager;
         $this->scopeConfig = $scopeConfig;
+        $this->logger = $logger;
     }
 
     /**
@@ -202,13 +207,8 @@ class Request
 
     public function debuggerOn($str, $requestUri = null)
     {
-
         if ($requestUri == Mode::DEBUG_URL) {
-
-            $writer = new \Laminas\Log\Writer\Stream(BP . '/var/log/Partnerads.log');
-            $logger = new \Laminas\Log\Logger();
-            $logger->addWriter($writer);
-            $logger->info($str);
+            $this->logger->info($str);
         }
     }
 }
