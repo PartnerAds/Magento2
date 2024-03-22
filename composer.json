@@ -2,11 +2,7 @@
   "name": "partnerads/magento2",
   "description": "Magento 2 module for tracking affilate sales through Partner Ads network",
   "type": "magento2-module",
-  "version": "2.2",
-  "require": {
-    "magento/product-community-edition": ">=2.3",
-    "magento/product-enterprise-edition": ">=2.3"
-  },
+  "version": "2.2.1",
   "license": [
     "proprietary"
   ],
