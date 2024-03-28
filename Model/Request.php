@@ -9,6 +9,7 @@ use Laminas\Http\Client\Adapter\Curl;
 use Laminas\Http\Client as LaminasHttpClient;
 use Laminas\Http\Request as LaminasHttpRequest;
 use Laminas\Stdlib\Parameters as LaminasRequestParameters;
+use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
 use Magento\Store\Model\StoreManagerInterface;
@@ -37,7 +38,7 @@ class Request
     private $storeManager;
 
     /**
-     * @var  \Magento\Framework\App\Config\ScopeConfigInterface
+     * @var  ScopeConfigInterface
      */
     protected $scopeConfig;
 
@@ -49,12 +50,14 @@ class Request
      * @param ConfigInterface $config
      * @param OrderRepositoryInterface $orderRepository
      * @param StoreManagerInterface $storeManager
+     * @param ScopeConfigInterface $scopeConfig
+     * @param Logger $logger
      */
     public function __construct(
         ConfigInterface $config,
         OrderRepositoryInterface $orderRepository,
         StoreManagerInterface $storeManager,
-        \Magento\Framework\App\Config\ScopeConfigInterface $scopeConfig,
+        ScopeConfigInterface $scopeConfig,
         Logger $logger
     ) {
         $this->config = $config;
