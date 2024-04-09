@@ -9,10 +9,12 @@ use Laminas\Http\Client\Adapter\Curl;
 use Laminas\Http\Client as LaminasHttpClient;
 use Laminas\Http\Request as LaminasHttpRequest;
 use Laminas\Stdlib\Parameters as LaminasRequestParameters;
+use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
 use Magento\Store\Model\StoreManagerInterface;
 use Partner\Module\Api\ConfigInterface;
+use Partner\Module\Model\Logger\Logger;
 use Partner\Module\Model\System\Config\Mode;
 
 class Request
@@ -36,9 +38,11 @@ class Request
     private $storeManager;
 
     /**
-     * @var  \Magento\Framework\App\Config\ScopeConfigInterface
+     * @var  ScopeConfigInterface
      */
     protected $scopeConfig;
+
+    private Logger $logger;
 
     /**
      * Request constructor.
@@ -46,17 +50,21 @@ class Request
      * @param ConfigInterface $config
      * @param OrderRepositoryInterface $orderRepository
      * @param StoreManagerInterface $storeManager
+     * @param ScopeConfigInterface $scopeConfig
+     * @param Logger $logger
      */
     public function __construct(
         ConfigInterface $config,
         OrderRepositoryInterface $orderRepository,
         StoreManagerInterface $storeManager,
-        \Magento\Framework\App\Config\ScopeConfigInterface $scopeConfig
+        ScopeConfigInterface $scopeConfig,
+        Logger $logger
     ) {
         $this->config = $config;
         $this->orderRepository = $orderRepository;
         $this->storeManager = $storeManager;
         $this->scopeConfig = $scopeConfig;
+        $this->logger = $logger;
     }
 
     /**
@@ -202,13 +210,8 @@ class Request
 
     public function debuggerOn($str, $requestUri = null)
     {
-
         if ($requestUri == Mode::DEBUG_URL) {
-
-            $writer = new \Laminas\Log\Writer\Stream(BP . '/var/log/Partnerads.log');
-            $logger = new \Laminas\Log\Logger();
-            $logger->addWriter($writer);
-            $logger->info($str);
+            $this->logger->info($str);
         }
     }
 }
