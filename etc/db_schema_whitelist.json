@@ -1,0 +1,9 @@
+{
+    "sales_order": {
+        "column": {
+            "partnerads_partner_id": true,
+            "partnerads_pacid_id": true,
+            "partnerads_order_sent": true
+        }
+    }
+}
