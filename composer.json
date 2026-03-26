@@ -2,7 +2,7 @@
   "name": "partnerads/magento2",
   "description": "Magento 2 module for tracking affilate sales through Partner Ads network",
   "type": "magento2-module",
-  "version": "2.2.3",
+  "version": "2.3.0",
   "license": [
     "proprietary"
   ],
@@ -34,6 +34,10 @@
     {
       "name": "Julian F. Christmas",
       "email": "jc@intelligodenmark.dk"
+    },
+    {
+      "name": "Mikael Rasmussen",
+      "email": "mikael@devilfish.dk"
     }
   ],
   "minimum-stability": "dev",
