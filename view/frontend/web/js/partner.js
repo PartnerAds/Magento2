@@ -57,11 +57,12 @@ define([
     }
 
     return function (config) {
+        config = config || {};
+
         var partnerIdFromUrl = getQueryParam('pa-partnerid');
         var pacIdFromUrl = getQueryParam('pacid');
-        var hasServerValues = !!(config.partnerId || config.pacId);
-        var partnerId = hasServerValues ? (config.partnerId || '') : (partnerIdFromUrl || '');
-        var pacId = hasServerValues ? (config.pacId || '') : (pacIdFromUrl || '');
+        var partnerId = partnerIdFromUrl || config.partnerId || '';
+        var pacId = pacIdFromUrl || config.pacId || '';
 
         if (!partnerId && !pacId) {
             return;
@@ -71,7 +72,8 @@ define([
             url: config.url,
             data: {
                 'partnerId': partnerId,
-                'pacId': pacId
+                'pacId': pacId,
+                '_': Date.now()
             },
             type: 'GET',
             global: true,
