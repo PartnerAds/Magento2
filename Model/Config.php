@@ -32,7 +32,7 @@ class Config implements ConfigInterface
      * @param StoreInterface|null $store
      * @return string
      */
-    public function getProgramId(StoreInterface $store = null)
+    public function getProgramId(?StoreInterface $store = null)
     {
         if ($store instanceof StoreInterface) {
             return $this->scopeConfig->getValue(
@@ -48,7 +48,7 @@ class Config implements ConfigInterface
      * @param StoreInterface|null $store
      * @return string
      */
-    public function getProgramType(StoreInterface $store = null)
+    public function getProgramType(?StoreInterface $store = null)
     {
         if ($store instanceof StoreInterface) {
             return $this->scopeConfig->getValue(
@@ -64,7 +64,7 @@ class Config implements ConfigInterface
      * @param StoreInterface|null $store
      * @return string
      */
-    public function getProgramOrderState(StoreInterface $store = null)
+    public function getProgramOrderState(?StoreInterface $store = null)
     {
         if ($store instanceof StoreInterface) {
             return $this->scopeConfig->getValue(
@@ -80,7 +80,7 @@ class Config implements ConfigInterface
      * @param StoreInterface|null $store
      * @return string
      */
-    public function getExportMode(StoreInterface $store = null)
+    public function getExportMode(?StoreInterface $store = null)
     {
         if ($store instanceof StoreInterface) {
             return $this->scopeConfig->getValue(
@@ -96,7 +96,7 @@ class Config implements ConfigInterface
      * @param StoreInterface|null $store
      * @return string
      */
-    public function getMode(StoreInterface $store = null)
+    public function getMode(?StoreInterface $store = null)
     {
         if ($store instanceof StoreInterface) {
             return $this->scopeConfig->getValue(
