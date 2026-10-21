@@ -5,6 +5,8 @@
 
 namespace Partner\Module\Model;
 
+use Magento\Framework\App\ObjectManager;
+use Magento\Framework\App\RequestInterface;
 use Magento\Framework\Stdlib\CookieManagerInterface;
 use Magento\Framework\Stdlib\Cookie\CookieMetadataFactory;
 use Magento\Framework\Session\SessionManagerInterface;
@@ -18,6 +20,16 @@ class TrackingCookieManager
     const PARAM_PARTNER = 'pa-partnerid';
     const COOKIE_PACID = 'pacid';
     const PARAM_PACID = 'pacid';
+
+    /**
+     * Partner-ads partner IDs are numeric
+     */
+    const PARTNER_ID_PATTERN = '/^[0-9]{1,20}\z/';
+
+    /**
+     * Partner-ads click IDs are short URL-safe tokens (e.g. "5f1a2b3c4d5e61.23456789")
+     */
+    const PACID_PATTERN = '/^[A-Za-z0-9._-]{1,100}\z/';
 
     /**
      * @var CookieManagerInterface
@@ -35,19 +47,63 @@ class TrackingCookieManager
     private $sessionManager;
 
     /**
+     * @var RequestInterface
+     */
+    private $request;
+
+    /**
      * TrackingCookieManager constructor.
      * @param CookieManagerInterface $cookieManager
      * @param CookieMetadataFactory $cookieMetadataFactory
      * @param SessionManagerInterface $sessionManager
+     * @param RequestInterface|null $request
      */
     public function __construct(
         CookieManagerInterface $cookieManager,
         CookieMetadataFactory $cookieMetadataFactory,
-        SessionManagerInterface $sessionManager
+        SessionManagerInterface $sessionManager,
+        ?RequestInterface $request = null
     ) {
         $this->cookieManager = $cookieManager;
         $this->cookieMetadataFactory = $cookieMetadataFactory;
         $this->sessionManager = $sessionManager;
+        $this->request = $request ?: ObjectManager::getInstance()->get(RequestInterface::class);
+    }
+
+    /**
+     * Returns the value if it is a valid partner ID, otherwise an empty string
+     *
+     * @param mixed $value
+     * @return string
+     */
+    public static function filterPartnerId($value)
+    {
+        return self::filter($value, self::PARTNER_ID_PATTERN);
+    }
+
+    /**
+     * Returns the value if it is a valid click ID (pacid), otherwise an empty string
+     *
+     * @param mixed $value
+     * @return string
+     */
+    public static function filterPacId($value)
+    {
+        return self::filter($value, self::PACID_PATTERN);
+    }
+
+    /**
+     * @param mixed $value
+     * @param string $pattern
+     * @return string
+     */
+    private static function filter($value, $pattern)
+    {
+        if (!is_string($value) || !preg_match($pattern, $value)) {
+            return '';
+        }
+
+        return $value;
     }
 
     /**
@@ -64,7 +120,8 @@ class TrackingCookieManager
             ->createPublicCookieMetadata()
             ->setDuration($duration)
             ->setPath($this->sessionManager->getCookiePath())
-            ->setDomain($this->sessionManager->getCookieDomain());
+            ->setDomain($this->sessionManager->getCookieDomain())
+            ->setSecure($this->request->isSecure());
 
         $this->cookieManager->setPublicCookie(
             $cookieName,

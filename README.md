@@ -56,6 +56,15 @@ Starting from version 2.1.0, we have made significant enhancements to the debug 
 
 Please remember to set `Mode` back to `Production` afterwards.
 
+## Changelog
+
+### 2.3.3
+
+- Security: the partner tracking parameters are now validated and safely encoded before they are output on the page. All shops should upgrade.
+- Security: hardened the PartnerAds GraphQL query.
+- The tracking cookies are marked `Secure` on HTTPS, and downloading failed exports in the admin now requires the Partner Ads configuration permission.
+- The module runs on PHP 7.1–7.3 again (2.3.2 required PHP 7.4 in practice).
+
 ## Support & Bugs
 
 Please contact supportdk@partner-ads.com for support and bug requests.

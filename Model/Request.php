@@ -42,7 +42,10 @@ class Request
      */
     protected $scopeConfig;
 
-    private Logger $logger;
+    /**
+     * @var Logger
+     */
+    private $logger;
 
     /**
      * Request constructor.

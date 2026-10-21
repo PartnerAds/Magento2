@@ -44,8 +44,8 @@ class Cookie extends Action
     public function execute()
     {
         try {
-            $partner = $this->getRequest()->getParam('partnerId');
-            $pacId = $this->getRequest()->getParam('pacId');
+            $partner = TrackingCookieManager::filterPartnerId($this->getRequest()->getParam('partnerId'));
+            $pacId = TrackingCookieManager::filterPacId($this->getRequest()->getParam('pacId'));
 
             if (!empty($partner)) {
                 $this->trackingCookie->setTrackingCookies(TrackingCookieManager::COOKIE_PARTNER, $partner);
