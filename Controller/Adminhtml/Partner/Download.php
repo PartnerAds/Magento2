@@ -13,6 +13,10 @@ use Magento\Framework\Controller\ResultFactory;
 
 class Download extends Action
 {
+    /**
+     * Same ACL resource as the module's configuration section
+     */
+    const ADMIN_RESOURCE = 'Partner_Module::system_config';
 
     /**
      * @var Handler
