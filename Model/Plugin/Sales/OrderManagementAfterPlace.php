@@ -67,8 +67,14 @@ class OrderManagementAfterPlace
     {
         $programId = $this->config->getProgramId($this->storeManager->getStore());
         $type = $this->config->getProgramType($this->storeManager->getStore());
-        $partnerId = $this->trackingCookieManager->getCookie(TrackingCookieManager::COOKIE_PARTNER);
-        $pacId = $this->trackingCookieManager->getCookie(TrackingCookieManager::COOKIE_PACID);
+        // Cookies come from the browser: only well-formed IDs are stored on the order.
+        // Without a valid partner ID the order is not attributed; an invalid click ID is stored as empty.
+        $partnerId = TrackingCookieManager::filterPartnerId(
+            $this->trackingCookieManager->getCookie(TrackingCookieManager::COOKIE_PARTNER)
+        );
+        $pacId = TrackingCookieManager::filterPacId(
+            $this->trackingCookieManager->getCookie(TrackingCookieManager::COOKIE_PACID)
+        );
 
         if (empty($programId)
             || empty($type)

@@ -22,14 +22,15 @@ class TrackingCookieManager
     const PARAM_PACID = 'pacid';
 
     /**
-     * Partner-ads partner IDs are numeric
+     * Partner-ads partner IDs are numeric (1-10 digits)
      */
-    const PARTNER_ID_PATTERN = '/^[0-9]{1,20}\z/';
+    const PARTNER_ID_PATTERN = '/^[0-9]{1,10}\z/';
 
     /**
-     * Partner-ads click IDs are short URL-safe tokens (e.g. "5f1a2b3c4d5e61.23456789")
+     * Partner-ads click IDs are URL-safe tokens of up to 255 characters, e.g. "5f1a2b3c4d5e61.23456789"
+     * or a Google Ads click ID (letters, digits, "-" and "_")
      */
-    const PACID_PATTERN = '/^[A-Za-z0-9._-]{1,100}\z/';
+    const PACID_PATTERN = '/^[A-Za-z0-9._-]{1,255}\z/';
 
     /**
      * @var CookieManagerInterface
@@ -116,18 +117,40 @@ class TrackingCookieManager
      */
     public function setCookie($cookieName, $value, $duration = 3456000)
     {
-        $metadata = $this->cookieMetadataFactory
-            ->createPublicCookieMetadata()
-            ->setDuration($duration)
-            ->setPath($this->sessionManager->getCookiePath())
-            ->setDomain($this->sessionManager->getCookieDomain())
-            ->setSecure($this->request->isSecure());
+        $metadata = $this->createMetadata()
+            ->setDuration($duration);
 
         $this->cookieManager->setPublicCookie(
             $cookieName,
             $value,
             $metadata
         );
+    }
+
+    /**
+     * Deletes a tracking cookie, using the same path and domain as when it was set
+     *
+     * @param string $cookieName
+     * @throws InputException
+     * @throws FailureToSendException
+     */
+    public function deleteCookie($cookieName)
+    {
+        $this->cookieManager->deleteCookie($cookieName, $this->createMetadata());
+    }
+
+    /**
+     * Cookie metadata shared by setting and deleting the tracking cookies
+     *
+     * @return \Magento\Framework\Stdlib\Cookie\PublicCookieMetadata
+     */
+    private function createMetadata()
+    {
+        return $this->cookieMetadataFactory
+            ->createPublicCookieMetadata()
+            ->setPath($this->sessionManager->getCookiePath())
+            ->setDomain($this->sessionManager->getCookieDomain())
+            ->setSecure($this->request->isSecure());
     }
 
     public function setTrackingCookies($name, $value)

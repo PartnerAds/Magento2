@@ -4,7 +4,6 @@ This extension adds the following functionality to Magento:
 
 - Track visitors from Partner Ads publishers via cookie
 - Send order information to Partner Ads affiliate network depending on order status
-- Possibility for communication Magento backend via GraphQL endpoints
 
 ## Compatibility
 
@@ -57,6 +56,14 @@ Starting from version 2.1.0, we have made significant enhancements to the debug 
 Please remember to set `Mode` back to `Production` afterwards.
 
 ## Changelog
+
+### 2.4.0 (unreleased)
+
+- Removed the PartnerAds GraphQL query.
+- Partner IDs of 1–10 digits and click IDs (`pacid`) of up to 255 characters are accepted, including Google Ads click IDs. The `partnerads_pacid_id` order column is widened to 255 characters.
+- Orders only get partner data from well-formed tracking cookies.
+- A new partner link without a click ID removes the click ID of an earlier link. A click ID without a valid partner ID is ignored.
+- The installed module version is shown at the top of the Partner Ads Setup configuration.
 
 ### 2.3.3
 

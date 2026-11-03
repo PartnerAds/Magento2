@@ -47,12 +47,19 @@ class Cookie extends Action
             $partner = TrackingCookieManager::filterPartnerId($this->getRequest()->getParam('partnerId'));
             $pacId = TrackingCookieManager::filterPacId($this->getRequest()->getParam('pacId'));
 
-            if (!empty($partner)) {
-                $this->trackingCookie->setTrackingCookies(TrackingCookieManager::COOKIE_PARTNER, $partner);
+            // A click ID only means something together with a partner ID: without a valid partner ID,
+            // leave the existing cookies untouched.
+            if (empty($partner)) {
+                return;
             }
+
+            $this->trackingCookie->setTrackingCookies(TrackingCookieManager::COOKIE_PARTNER, $partner);
 
             if (!empty($pacId)) {
                 $this->trackingCookie->setTrackingCookies(TrackingCookieManager::COOKIE_PACID, $pacId);
+            } elseif ($this->trackingCookie->getCookie(TrackingCookieManager::COOKIE_PACID) !== null) {
+                // New partner link without a (valid) click ID: drop the previous partner's click ID
+                $this->trackingCookie->deleteCookie(TrackingCookieManager::COOKIE_PACID);
             }
         } catch (\Exception $exception) {
             $this->logger->error($exception);
