@@ -35,8 +35,9 @@
                         <model>Partner\Module\Model\System\Config\Comment\DownloadLink</model>
                     </comment>
                 </field>
-                <field id="mode" translate="label" type="select" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
+                <field id="mode" translate="label comment" type="select" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Mode</label>
+                    <comment>Development is a dry run: nothing is sent to Partner-ads. Orders that reach the commit state are only written to var/log/partner.log and are never exported later. Use Production in a live shop.</comment>
                     <source_model>Partner\Module\Model\System\Config\Mode</source_model>
                 </field>
             </group>

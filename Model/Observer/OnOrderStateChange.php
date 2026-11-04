@@ -5,29 +5,23 @@
 
 namespace Partner\Module\Model\Observer;
 
-use Magento\Framework\Event;
+use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Sales\Model\Order;
-use Partner\Module\Api\ConfigInterface;
-use Partner\Module\Api\CsvHandlerInterface;
+use Partner\Module\Model\Exporter;
 use Partner\Module\Model\Logger\Logger;
-use Partner\Module\Model\Request;
-use Partner\Module\Model\SkipMessage;
-use Partner\Module\Model\System\Config\Export\Mode;
-use Magento\Framework\Event\Observer;
 
+/**
+ * Observer mode: exports an order once its save is committed and it is in the commit state.
+ * An order save never fails because of the export: every error is caught and logged, and failed
+ * attempts are retried by cron.
+ */
 class OnOrderStateChange implements ObserverInterface
 {
-
     /**
-     * @var ConfigInterface
+     * @var Exporter
      */
-    private $config;
-
-    /**
-     * @var Request
-     */
-    private $request;
+    private $exporter;
 
     /**
      * @var Logger
@@ -35,66 +29,41 @@ class OnOrderStateChange implements ObserverInterface
     private $logger;
 
     /**
-     * @var CsvHandlerInterface
-     */
-    private $csvHandler;
-
-    /**
-     * OnOrderStateChange constructor.
-     * @param ConfigInterface $config
-     * @param Request $request
+     * @param Exporter $exporter
      * @param Logger $logger
      */
     public function __construct(
-        ConfigInterface $config,
-        Request $request,
-        Logger $logger,
-        CsvHandlerInterface $csvHandler
+        Exporter $exporter,
+        Logger $logger
     ) {
-        $this->config = $config;
-        $this->request = $request;
+        $this->exporter = $exporter;
         $this->logger = $logger;
-        $this->csvHandler = $csvHandler;
     }
 
     /**
      * @param Observer $observer
-     * @return $this|void
+     * @return $this
      */
     public function execute(Observer $observer)
     {
-
-        if (true !== ($observer->getEvent() instanceof Event)) {
-            return;
-        }
-
-        if (true !== ($observer->getEvent()->getOrder() instanceof Order)) {
-            return;
-        }
-
-        /** @var Order $order */
-        $order = $observer->getEvent()->getOrder();
-
-        $store = $order->getStore();
-
-        $exportMode = $this->config->getExportMode($store);
-
-        if (Mode::OBSERVER != $exportMode) {
-            return;
-        }
-
+        $order = null;
         try {
-            $status = $this->request->send($order);
-
-            if (true === $status) {
-                $this->logger->info('Successfully exported: #' . $order->getIncrementId());
+            $order = $observer->getEvent()->getOrder();
+            if ($order instanceof Order) {
+                $this->exporter->export($order, Exporter::CONTEXT_OBSERVER);
             }
-        } catch (SkipMessage $skip) {
-            if (true === $skip->hasExportData()) {
-                $this->csvHandler->addLine($skip->getExportData());
+        } catch (\Throwable $e) {
+            try {
+                $this->logger->error(sprintf(
+                    'Export of #%s stopped by an error: %s: %s',
+                    $order instanceof Order ? $order->getIncrementId() : '?',
+                    get_class($e),
+                    $e->getMessage()
+                ));
+            } catch (\Throwable $ignored) {
+                // never let logging break the order save
+                unset($ignored);
             }
-
-            $this->logger->info($skip->getMessage());
         }
 
         return $this;

@@ -8,6 +8,11 @@
     </type>
     <preference for="Partner\Module\Api\ConfigInterface" type="Partner\Module\Model\Config"/>
     <preference for="Partner\Module\Api\CsvHandlerInterface" type="Partner\Module\Model\Csv\Handler"/>
+    <type name="Partner\Module\Model\Request">
+        <arguments>
+            <argument name="trackingUrl" xsi:type="const">Partner\Module\Model\System\Config\Mode::TRACKING_URL</argument>
+        </arguments>
+    </type>
     <type name="Partner\Module\Model\Logger\Handler">
         <arguments>
             <argument name="filesystem" xsi:type="object">Magento\Framework\Filesystem\Driver\File</argument>

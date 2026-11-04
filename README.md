@@ -43,17 +43,31 @@ This version maintains the essential features tailored to be compatible with old
 
 The Partner Ads module supports multi store setup per Magento’s normal requirements, therefore you are able to set individual Partner Ads program on a per store view basis via Magento admin.
 
-### Debugging
+### Export to Partner-ads
 
-Starting from version 2.1.0, we have made significant enhancements to the debug log functionality. To effectively debug Partner Ads tracking and communication with Partner Ads servers, please follow these steps:
+When an order with partner data reaches the order state set in *Commit by Order State* (default `processing`), the sale is reported to Partner-ads:
+
+- *Export Mode* `Observer` (default): right when the order is saved, with a short timeout (connect 3 s, total 5 s). An order save never fails because of the export.
+- *Export Mode* `CronJob`: by the Magento cron job `partner_export_orders_cron` (every minute, timeout 10 s). It picks up orders in the commit state that were created within the last 30 days.
+
+If Partner-ads can't be reached or gives no definite answer (network error, timeout, HTTP 5xx or 429), the cron job tries again, in both export modes, so Magento cron must run:
+
+- at most 5 attempts per order in total, about 5 minutes, 15 minutes, 1 hour and 6 hours apart;
+- only for orders created within the last 30 days.
+
+An export that is rejected (HTTP 4xx), that still fails after the last attempt, or whose order turns 30 days old first, is written to `var/partner/failed_export.csv` with the reason. Download it with the *Download Failed Exports* link under *Export Mode*. Partner-ads ignores a sale that is sent twice with the same program ID and order number, so a retry after a timeout is safe.
+
+In observer mode, the cron job only retries exports that failed after the upgrade to 2.4.0. Older orders that were never sent are not picked up, so upgrading doesn't suddenly report old orders.
+
+### Debugging
 
 - Login to Magento admin
 - Go to Stores - Configuration - Partner Ads Setup
-- Adjust the `Mode` setting to `Debug`
-- Perform an order placement using valid `PACID` and `PARTNERID` values
-- Monitor the request and response log in the `var/log/Partnerads.log` file
+- Set `Mode` to `Development`. This is a dry run: nothing is sent to Partner-ads. When an order reaches the commit state, the request that would have been sent is written to `var/log/partner.log`, and the order is marked so that it is never exported later.
+- Perform an order placement using valid `pacid` and `pa-partnerid` values and move the order to the commit state
+- Check `var/log/partner.log`
 
-Please remember to set `Mode` back to `Production` afterwards.
+Set `Mode` back to `Production` afterwards. In `Production`, `var/log/partner.log` has one line per export and per failed attempt.
 
 ## Changelog
 
@@ -64,6 +78,13 @@ Please remember to set `Mode` back to `Production` afterwards.
 - Orders only get partner data from well-formed tracking cookies.
 - A new partner link without a click ID removes the click ID of an earlier link. A click ID without a valid partner ID is ignored.
 - The installed module version is shown at the top of the Partner Ads Setup configuration.
+- An order save never fails because of the export to Partner-ads. In observer mode the export runs right after the save with a 5-second timeout.
+- Failed exports are retried automatically by the cron job, in both export modes: at most 5 attempts, about 5 minutes, 15 minutes, 1 hour and 6 hours apart, and only for orders from the last 30 days. In observer mode only exports that failed after the upgrade are retried; older unsent orders are not picked up.
+- The cron job only looks at orders in the commit state from the last 30 days, at most 50 per run.
+- Rejected and given-up exports are written to the failed exports CSV again, with the reason. The admin download streams the file straight from `var/partner/` without writing another copy.
+- `Mode` `Development` is now a dry run: nothing is sent, and the request is written to `var/log/partner.log`. Older versions sent real sales in both modes; existing configurations count as `Production`.
+- `var/log/partner.log` is quieter: one line per export, failed attempt or cron run, and no lines for ordinary order saves.
+- Partner IDs must be a positive number without leading zeros (e.g. `0` and `0012345` are no longer accepted).
 
 ### 2.3.3
 

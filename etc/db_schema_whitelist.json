@@ -5,5 +5,22 @@
             "partnerads_pacid_id": true,
             "partnerads_order_sent": true
         }
+    },
+    "partner_module_export": {
+        "column": {
+            "order_id": true,
+            "status": true,
+            "attempts": true,
+            "last_attempt_at": true,
+            "next_attempt_at": true,
+            "last_error": true
+        },
+        "index": {
+            "PARTNER_MODULE_EXPORT_STATUS_NEXT_ATTEMPT_AT": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "PARTNER_MODULE_EXPORT_ORDER_ID_SALES_ORDER_ENTITY_ID": true
+        }
     }
 }

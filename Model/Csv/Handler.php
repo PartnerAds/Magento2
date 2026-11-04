@@ -16,15 +16,20 @@ class Handler implements CsvHandlerInterface
 
     const DIRECTORY_NAME = 'partner';
 
+    /**
+     * The export data fields (as sent to Partner-ads), then why and when the export failed (UTC)
+     */
     const HEADERS = [
         'programid',
         'type',
         'partnerid',
-        'userip',
+        'pacid',
         'ordreid',
         'varenummer',
         'antal',
-        'omprsalg'
+        'omprsalg',
+        'reason',
+        'failed_at'
     ];
 
     /**
@@ -77,22 +82,18 @@ class Handler implements CsvHandlerInterface
     }
 
     /**
+     * Path relative to var/
+     *
      * @return string
      */
     protected function getFilePath()
     {
-        return rtrim(
-            self::DIRECTORY_NAME,
-            DIRECTORY_SEPARATOR
-        )
-            . DIRECTORY_SEPARATOR
-            . ltrim(
-                self::FILE_NAME,
-                DIRECTORY_SEPARATOR
-            );
+        return self::DIRECTORY_NAME . '/' . self::FILE_NAME;
     }
 
     /**
+     * Opens the file for appending, locked, with the header line written if it is new
+     *
      * @return Filesystem\File\WriteInterface
      * @throws \Magento\Framework\Exception\FileSystemException
      */
@@ -109,51 +110,63 @@ class Handler implements CsvHandlerInterface
         $file->seek(0);
         $headers = $file->readCsv();
 
-        if (is_array($headers) && $this->validateHeaders($headers)) {
-            return $file;
+        if (!is_array($headers) || !$this->validateHeaders($headers)) {
+            $file->writeCsv(self::HEADERS);
         }
 
-        $file->writeCsv(self::HEADERS);
-        $file->unlock();
         return $file;
     }
 
     /**
-     * @param array $lineData
+     * @param array $lineData every key of HEADERS (other keys are ignored)
      * @return bool
      * @throws \Magento\Framework\Exception\FileSystemException
      */
     public function addLine(array $lineData)
     {
-        if (true !== $this->validateHeaders(array_keys($lineData))) {
-            return false;
+        $line = [];
+        foreach (self::HEADERS as $column) {
+            if (!array_key_exists($column, $lineData)) {
+                return false;
+            }
+            $line[] = $lineData[$column];
         }
 
         $file = $this->initFile();
-        $file->lock();
-        $bool = (false !== $file->writeCsv(array_values($lineData)));
-        $file->unlock();
+        try {
+            $bool = (false !== $file->writeCsv($line));
+        } finally {
+            $file->unlock();
+            $file->close();
+        }
         return $bool;
     }
 
     /**
+     * Streams var/partner/failed_export.csv. Nothing is written elsewhere and the file is kept.
+     *
      * @return \Magento\Framework\App\ResponseInterface|bool
      * @throws \Magento\Framework\Exception\FileSystemException
      */
     public function getDownloadFile()
     {
         $read = $this->getReadVarDir();
+        $path = $this->getFilePath();
 
-        if (true !== $read->isExist($this->getFilePath())) {
+        if (true !== $read->isFile($path)) {
             return false;
         }
 
-        $data = $read->readFile($this->getFilePath());
-
-        if (empty($data)) {
+        $stat = $read->stat($path);
+        if (empty($stat['size'])) {
             return false;
         }
 
-        return $this->fileFactory->create(self::FILE_NAME, $data);
+        return $this->fileFactory->create(
+            self::FILE_NAME,
+            ['type' => 'filename', 'value' => $path, 'rm' => false],
+            DirectoryList::VAR_DIR,
+            'text/csv'
+        );
     }
 }

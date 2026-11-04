@@ -5,3 +5,4 @@
 "Your Program Type", "Din Program Type"
 "Select either sale or lead", "Vælg enten salg eller lead"
 "Module version", "Modulversion"
+"Development is a dry run: nothing is sent to Partner-ads. Orders that reach the commit state are only written to var/log/partner.log and are never exported later. Use Production in a live shop.", "Development er en prøvekørsel: intet sendes til Partner-ads. Ordrer, der når den valgte ordrestatus, skrives kun i var/log/partner.log og eksporteres aldrig senere. Brug Production i en live butik."

@@ -5,4 +5,20 @@
         <column xsi:type="varchar" name="partnerads_pacid_id" nullable="true" length="255" comment="PartnerAds PacId Id"/>
         <column xsi:type="int" name="partnerads_order_sent" padding="5" unsigned="false" nullable="true" identity="false" comment="PartnerAds Order Sent"/>
     </table>
+    <table name="partner_module_export" resource="sales" engine="innodb" comment="PartnerAds Export Retries And Failures">
+        <column xsi:type="int" name="order_id" padding="10" unsigned="true" nullable="false" identity="false" comment="Order Entity Id"/>
+        <column xsi:type="varchar" name="status" nullable="false" length="16" comment="retry or failed"/>
+        <column xsi:type="smallint" name="attempts" padding="5" unsigned="true" nullable="false" identity="false" default="0" comment="Attempts Made"/>
+        <column xsi:type="datetime" name="last_attempt_at" on_update="false" nullable="true" comment="Last Attempt (UTC)"/>
+        <column xsi:type="datetime" name="next_attempt_at" on_update="false" nullable="true" comment="Next Attempt (UTC)"/>
+        <column xsi:type="varchar" name="last_error" nullable="true" length="255" comment="Last Error"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="order_id"/>
+        </constraint>
+        <constraint xsi:type="foreign" referenceId="PARTNER_MODULE_EXPORT_ORDER_ID_SALES_ORDER_ENTITY_ID" table="partner_module_export" column="order_id" referenceTable="sales_order" referenceColumn="entity_id" onDelete="CASCADE"/>
+        <index referenceId="PARTNER_MODULE_EXPORT_STATUS_NEXT_ATTEMPT_AT" indexType="btree">
+            <column name="status"/>
+            <column name="next_attempt_at"/>
+        </index>
+    </table>
 </schema>

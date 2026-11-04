@@ -22,9 +22,9 @@ class TrackingCookieManager
     const PARAM_PACID = 'pacid';
 
     /**
-     * Partner-ads partner IDs are numeric (1-10 digits)
+     * Partner-ads partner IDs are positive numbers of 1-10 digits without leading zeros
      */
-    const PARTNER_ID_PATTERN = '/^[0-9]{1,10}\z/';
+    const PARTNER_ID_PATTERN = '/^[1-9][0-9]{0,9}\z/';
 
     /**
      * Partner-ads click IDs are URL-safe tokens of up to 255 characters, e.g. "5f1a2b3c4d5e61.23456789"
