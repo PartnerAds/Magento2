@@ -15,6 +15,10 @@
                     <label>Module version</label>
                     <frontend_model>Partner\Module\Block\Adminhtml\System\Config\ModuleVersion</frontend_model>
                 </field>
+                <field id="export_status" translate="label" sortOrder="2" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Export status</label>
+                    <frontend_model>Partner\Module\Block\Adminhtml\System\Config\ExportStatus</frontend_model>
+                </field>
                 <field id="program_id" translate="label comment" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Your Program ID</label>
                     <comment>Insert your Program ID here</comment>

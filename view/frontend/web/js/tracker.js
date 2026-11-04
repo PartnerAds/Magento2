@@ -10,8 +10,9 @@
  *   - pacid         click ID; sent only when valid (the server then replaces or deletes the pacid cookie)
  * The cookie endpoint validates both values again and sets the partner_id / pacid cookies.
  *
- * At most one request per page lifetime, also when a second copy of this tracker or the deprecated
- * Partner_Module/js/partner component runs on the same page (window.PartnerAdsTracked).
+ * One request per page lifetime, also when a second copy of this tracker or the deprecated Partner_Module/js/partner
+ * component runs on the same page (window.PartnerAdsTracked). If that request fails with a network error, HTTP 429 or
+ * 5xx, it is sent once more after about one second, so at most two requests per landing.
  */
 (function (window, document) {
     'use strict';
@@ -23,6 +24,10 @@
     // Keep identical to PARTNER_ID_PATTERN / PACID_PATTERN in Model/TrackingCookieManager.php
     var PARTNER_ID_PATTERN = /^[1-9][0-9]{0,9}$/;
     var PACID_PATTERN = /^[A-Za-z0-9._-]{1,255}$/;
+
+    // FE-04: one more request after a network error, HTTP 429 or 5xx, about one second later
+    var MAX_ATTEMPTS = 2;
+    var RETRY_DELAY = 1000;
 
     /**
      * Decodes one query-string component ("+" is a space); throws on malformed percent-encoding.
@@ -148,20 +153,49 @@
     }
 
     /**
-     * One GET request; fetch where available, otherwise XMLHttpRequest. Errors are ignored.
+     * Whether a cookie request should be sent once more: a network error (status 0), HTTP 429 or 5xx.
      *
-     * @param {string} url
+     * @param {number} status
+     * @return {boolean}
      */
-    function send(url) {
+    function retryable(status) {
+        return !status || status === 429 || status >= 500;
+    }
+
+    /**
+     * GET the cookie endpoint; fetch where available, otherwise XMLHttpRequest. Each attempt gets a fresh "_"
+     * timestamp. After a network error, HTTP 429 or 5xx the request is sent once more after RETRY_DELAY ms, so there
+     * are at most MAX_ATTEMPTS requests. Errors are ignored.
+     *
+     * @param {string} url endpoint with partnerId / pacId, without "_"
+     * @param {number} attempt 1 for the first request
+     */
+    function send(url, attempt) {
         var xhr;
+        var full = url + '&_=' + new Date().getTime();
+        var done = function (status) {
+            if (attempt < MAX_ATTEMPTS && retryable(status)) {
+                window.setTimeout(function () {
+                    try {
+                        send(url, attempt + 1);
+                    } catch (e) {
+                        // never break the page
+                    }
+                }, RETRY_DELAY);
+            }
+        };
 
         if (typeof window.fetch === 'function') {
             try {
-                window.fetch(url, {
+                window.fetch(full, {
                     method: 'GET',
                     credentials: 'same-origin',
                     cache: 'no-store',
                     keepalive: true
+                }).then(function (response) {
+                    done(response && response.status);
+                }, function () {
+                    done(0);
                 }).then(null, function () {});
 
                 return;
@@ -171,7 +205,13 @@
         }
 
         xhr = new window.XMLHttpRequest();
-        xhr.open('GET', url, true);
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4) {
+                xhr.onreadystatechange = null;
+                done(xhr.status);
+            }
+        };
+        xhr.open('GET', full, true);
         xhr.send();
     }
 
@@ -203,8 +243,7 @@
             window[GUARD] = true;
             send(url + (url.indexOf('?') < 0 ? '?' : '&')
                 + 'partnerId=' + encodeURIComponent(partnerId)
-                + (pacId ? '&pacId=' + encodeURIComponent(pacId) : '')
-                + '&_=' + new Date().getTime());
+                + (pacId ? '&pacId=' + encodeURIComponent(pacId) : ''), 1);
         }());
     } catch (e) {
         // never break the page
