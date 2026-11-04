@@ -22,13 +22,14 @@ class TrackingCookieManager
     const PARAM_PACID = 'pacid';
 
     /**
-     * Partner-ads partner IDs are positive numbers of 1-10 digits without leading zeros
+     * Partner-ads partner IDs are positive numbers of 1-10 digits without leading zeros.
+     * The same pattern is used in the browser: keep view/frontend/web/js/tracker.js and partner.js in line.
      */
     const PARTNER_ID_PATTERN = '/^[1-9][0-9]{0,9}\z/';
 
     /**
      * Partner-ads click IDs are URL-safe tokens of up to 255 characters, e.g. "5f1a2b3c4d5e61.23456789"
-     * or a Google Ads click ID (letters, digits, "-" and "_")
+     * or a Google Ads click ID (letters, digits, "-" and "_"). Also used in tracker.js and partner.js.
      */
     const PACID_PATTERN = '/^[A-Za-z0-9._-]{1,255}\z/';
 

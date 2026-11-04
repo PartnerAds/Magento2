@@ -59,6 +59,15 @@ An export that is rejected (HTTP 4xx), that still fails after the last attempt, 
 
 In observer mode, the cron job only retries exports that failed after the upgrade to 2.4.0. Older orders that were never sent are not picked up, so upgrading doesn't suddenly report old orders.
 
+### Themes and caching
+
+The module adds one small script to every storefront page: `Partner_Module/js/tracker.js`, plain JavaScript without jQuery, RequireJS or Alpine. It works the same on Luma, Breeze and Hyvä themes, and no theme-specific copy is needed.
+
+- The page HTML is the same with and without the tracking parameters, so pages can be cached in Varnish or the built-in full-page cache. The tracker reads `pa-partnerid` and `pacid` from the URL in the browser.
+- Invalid values are ignored in the browser. With a valid partner ID, the tracker makes one request to `/papartner/ajax/cookie/`, which validates the values again and sets the `partner_id` and `pacid` cookies.
+- Theme overrides: if your theme overrides `Partner_Module::script.phtml` or has its own copy of `Partner_Module/js/partner` (for example for Breeze), remove them after upgrading to 2.4.0. They keep working meanwhile, but only the module's own template is cache-safe and theme-independent. On Hyvä, the old `text/x-magento-init` template never ran.
+- Magento's Content Security Policy needs nothing extra, also on the checkout pages: the tracker is a static file without inline code, and its request goes to the shop's own domain.
+
 ### Debugging
 
 - Login to Magento admin
@@ -85,6 +94,10 @@ Set `Mode` back to `Production` afterwards. In `Production`, `var/log/partner.lo
 - `Mode` `Development` is now a dry run: nothing is sent, and the request is written to `var/log/partner.log`. Older versions sent real sales in both modes; existing configurations count as `Production`.
 - `var/log/partner.log` is quieter: one line per export, failed attempt or cron run, and no lines for ordinary order saves.
 - Partner IDs must be a positive number without leading zeros (e.g. `0` and `0012345` are no longer accepted).
+- One dependency-free tracker script for Luma, Breeze and Hyvä; no theme copy is needed.
+- The tracking parameters are no longer printed into the page, so pages are safe to cache in Varnish and the full-page cache. Tracking reads the parameters in the browser.
+- Invalid tracking parameters are ignored in the browser.
+- Theme overrides of `Partner_Module::script.phtml` and copies of `Partner_Module/js/partner` are deprecated. Shops with such an override or copy should remove it after upgrading; it keeps working meanwhile.
 
 ### 2.3.3
 
