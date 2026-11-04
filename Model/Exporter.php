@@ -43,6 +43,18 @@ class Exporter
     const MAX_ORDER_AGE_DAYS = 30;
 
     /**
+     * The admin export status counts (and shows its notice for) failed exports whose last attempt was within this
+     * many days
+     */
+    const FAILED_DISPLAY_DAYS = 30;
+
+    /**
+     * The cron job deletes failed export rows whose last attempt is older than this many days. The exports stay in
+     * var/partner/failed_export.csv.
+     */
+    const FAILED_RETENTION_DAYS = 90;
+
+    /**
      * @var ConfigInterface
      */
     private $config;

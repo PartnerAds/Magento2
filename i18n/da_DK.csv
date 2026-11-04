@@ -8,7 +8,7 @@
 "Development is a dry run: nothing is sent to Partner-ads. Orders that reach the commit state are only written to var/log/partner.log and are never exported later. Use Production in a live shop.", "Development er en prøvekørsel: intet sendes til Partner-ads. Ordrer, der når den valgte ordrestatus, skrives kun i var/log/partner.log og eksporteres aldrig senere. Brug Production i en live butik."
 "Export status", "Eksportstatus"
 "Exports waiting for retry: %1", "Eksporter, der venter på nyt forsøg: %1"
-"Failed: %1", "Fejlet: %1"
+"Failed (last %1 days): %2", "Fejlet (seneste %1 dage): %2"
 "Last export cron run: %1", "Seneste kørsel af eksport-cron: %1"
 "%1 (store time)", "%1 (butikkens tid)"
 "none in the last hour", "ingen inden for den seneste time"

@@ -19,8 +19,12 @@ use Partner\Module\Model\System\Config\Export\Mode;
  * Runs every minute, in both export modes:
  * 1. retry rows whose order is older than Exporter::MAX_ORDER_AGE_DAYS become failed (with a CSV line);
  * 2. due retries (rows written by 2.4.0+ after an unsuccessful attempt);
- * 3. cron mode only: first attempts for orders in the commit state, created within MAX_ORDER_AGE_DAYS.
- * At most BATCH_SIZE orders per run, and one summary log line per run that did something.
+ * 3. cron mode only: first attempts for orders in the commit state, created within MAX_ORDER_AGE_DAYS;
+ * 4. failed rows whose last attempt is older than Exporter::FAILED_RETENTION_DAYS are deleted (at most
+ *    PRUNE_BATCH_SIZE per run); the exports stay in var/partner/failed_export.csv. Retry rows and orders are never
+ *    touched by this step.
+ * At most BATCH_SIZE orders per run, one summary log line per run that handled orders, and one line when failed
+ * rows were deleted.
  */
 class Orders
 {
@@ -28,6 +32,11 @@ class Orders
      * Orders handled per run
      */
     const BATCH_SIZE = 50;
+
+    /**
+     * Old failed export rows deleted per run at most (one DELETE ... LIMIT)
+     */
+    const PRUNE_BATCH_SIZE = 500;
 
     /**
      * A run stops after this many consecutive attempts without any HTTP answer (Partner-ads unreachable)
@@ -171,6 +180,40 @@ class Orders
                 $counts['errors'],
                 $stopped,
                 (int)round((microtime(true) - $start) * 1000)
+            ));
+        }
+
+        $this->pruneFailed();
+    }
+
+    /**
+     * Deletes old failed export rows, so the table and the admin "Failed" count don't grow forever.
+     * An error here is logged and never stops the export.
+     *
+     * @return void
+     */
+    private function pruneFailed()
+    {
+        try {
+            $deleted = $this->queue->deleteOldFailed(
+                gmdate('Y-m-d H:i:s', time() - Exporter::FAILED_RETENTION_DAYS * 86400),
+                self::PRUNE_BATCH_SIZE
+            );
+        } catch (\Throwable $e) {
+            $this->logger->error(sprintf(
+                'Cron cleanup of failed exports stopped by an error: %s: %s',
+                get_class($e),
+                $e->getMessage()
+            ));
+            return;
+        }
+
+        if ($deleted > 0) {
+            $this->logger->info(sprintf(
+                'Cron cleanup: deleted %d failed export row(s) whose last attempt is older than %d days '
+                . '(they stay in failed_export.csv)',
+                $deleted,
+                Exporter::FAILED_RETENTION_DAYS
             ));
         }
     }

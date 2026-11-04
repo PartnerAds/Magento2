@@ -183,6 +183,30 @@ class ExportQueue
     }
 
     /**
+     * Deletes up to $limit failed rows whose last attempt was before $lastAttemptBefore. Never touches retry rows
+     * or orders. One DELETE over the (status, next_attempt_at) index prefix; ORDER BY the primary key keeps the
+     * LIMIT deterministic (safe for statement-based replication).
+     *
+     * @param string $lastAttemptBefore UTC, Y-m-d H:i:s
+     * @param int $limit
+     * @return int deleted rows
+     */
+    public function deleteOldFailed($lastAttemptBefore, $limit)
+    {
+        if ($limit < 1) {
+            return 0;
+        }
+        $connection = $this->getConnection();
+        $sql = sprintf(
+            'DELETE FROM %s WHERE status = ? AND last_attempt_at < ? ORDER BY order_id LIMIT %d',
+            $connection->quoteIdentifier($this->getExportTable()),
+            (int)$limit
+        );
+
+        return $connection->query($sql, [self::STATUS_FAILED, (string)$lastAttemptBefore])->rowCount();
+    }
+
+    /**
      * @param int $orderId
      * @param string $status
      * @param int $attempts

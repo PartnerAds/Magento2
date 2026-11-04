@@ -9,12 +9,13 @@ use Magento\Backend\Block\Template\Context;
 use Magento\Config\Block\System\Config\Form\Field;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\Data\Form\Element\AbstractElement;
+use Partner\Module\Model\Exporter;
 use Partner\Module\Model\ExportQueue;
 
 /**
- * Shows how many exports wait for a retry or have failed (table partner_module_export, all store views) and when the
- * export cron job last finished successfully (cron_schedule). Warns when exports are waiting but cron doesn't seem
- * to run. Two cheap SELECTs, no writes, no outbound calls.
+ * Shows how many exports wait for a retry, how many failed within the last Exporter::FAILED_DISPLAY_DAYS days (table
+ * partner_module_export, all store views) and when the export cron job last finished successfully (cron_schedule).
+ * Warns when exports are waiting but cron doesn't seem to run. Two cheap SELECTs, no writes, no outbound calls.
  */
 class ExportStatus extends Field
 {
@@ -82,7 +83,7 @@ class ExportStatus extends Field
 
         $html .= $this->_escaper->escapeHtml(
             __('Exports waiting for retry: %1', $status['retry'])
-            . ' · ' . __('Failed: %1', $status['failed'])
+            . ' · ' . __('Failed (last %1 days): %2', Exporter::FAILED_DISPLAY_DAYS, $status['failed'])
             . ' · ' . __('Last export cron run: %1', $lastRun)
         ) . '</span>';
 
@@ -110,7 +111,8 @@ class ExportStatus extends Field
     }
 
     /**
-     * Counts by status and the last successful export cron run, or null when the tables can't be read
+     * Counts by status (failed: last attempt within FAILED_DISPLAY_DAYS) and the last successful export cron run,
+     * or null when the tables can't be read
      *
      * @return array|null ['retry' => int, 'failed' => int, 'last_cron_run' => string|null (UTC), 'cron_recent' => bool]
      */
@@ -119,10 +121,17 @@ class ExportStatus extends Field
         try {
             $connection = $this->resource->getConnection();
 
-            // COUNT per status over the (status, next_attempt_at) index
+            // COUNT per status over the (status, next_attempt_at) index; failed rows only from the display window.
+            // last_attempt_at is written in UTC (gmdate), so the cut-off is computed in UTC as well.
+            $failedSince = gmdate('Y-m-d H:i:s', time() - Exporter::FAILED_DISPLAY_DAYS * 86400);
             $counts = $connection->fetchPairs(
                 $connection->select()
                     ->from($this->resource->getTableName(ExportQueue::TABLE), ['status', 'COUNT(*)'])
+                    ->where(
+                        $connection->quoteInto('status = ?', ExportQueue::STATUS_RETRY) . ' OR ('
+                        . $connection->quoteInto('status = ?', ExportQueue::STATUS_FAILED) . ' AND '
+                        . $connection->quoteInto('last_attempt_at >= ?', $failedSince) . ')'
+                    )
                     ->group('status')
             );
 
