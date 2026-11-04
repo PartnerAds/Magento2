@@ -132,13 +132,13 @@ Magento switches maintenance mode on while it runs, takes the module out of `app
 
 - the table `partner_module_export`;
 - the columns `partnerads_partner_id`, `partnerads_pacid_id` and `partnerads_order_sent` from `sales_order` (on a large order table this `ALTER TABLE` can take a while);
-- its configuration (`partner_module/...` in `core_config_data`), the cron job's entries in `cron_schedule`, and unused EAV attribute rows that older versions registered for orders.
+- its configuration (`partner_module/...` in `core_config_data`), the cron job's entries in `cron_schedule`, unused EAV attribute rows that older versions registered for orders, and the `patch_list` entry of the module's data patch.
 
 It keeps the orders themselves and `var/partner/failed_export.csv` (delete that file by hand if you no longer need it). Take a database backup first: the partner data on the orders can't be restored afterwards.
 
 Without `-r`, Magento asks whether to remove the data; answer `N` to keep it. Without a terminal (for example in a deploy script) or with `--no-interaction`, Magento removes the data without asking.
 
-Disabling the module (`bin/magento module:disable Partner_Module`) also makes the next `bin/magento setup:upgrade` remove the module's columns and table, because Magento's declarative schema removes what a disabled module declared.
+**Disabling instead of uninstalling:** `bin/magento module:disable Partner_Module` keeps the partner data on the orders (the `partnerads_*` columns of `sales_order`). While the module is disabled, the next `bin/magento setup:upgrade` drops its own table `partner_module_export` (the export retry list), as Magento does with a disabled module's tables: exports that were waiting for a retry are then not retried, and failed exports stay in `failed_export.csv`. Enabling the module and running `setup:upgrade` creates the table again, empty. Only `module:uninstall -r` removes everything.
 
 Run `bin/magento setup:di:compile` and `bin/magento cache:flush` afterwards in production mode.
 
@@ -185,6 +185,9 @@ Requires Magento 2.3.5 or later. See "Upgrading from 2.3.x" before you upgrade.
 
 - Requires Magento 2.3.5 or later, or 2.4 (`magento/framework` `^102.0.5 || ^103.0` in `composer.json`); PHP 7.1 or later.
 - Fixed `module:uninstall` (#4): `bin/magento module:uninstall -r Partner_Module` no longer stops with a type error, and removes the module's columns, table and configuration. The old install and upgrade data scripts were removed; they had nothing left to do.
+- Disabling the module keeps the partner data on the orders; only the export retry list is removed (see "Uninstall").
+- The uninstall and the admin export status use Magento's sales database connection, like the export.
+- Removed leftover attribute records from early versions.
 - `Model\Request`, the order observer and the export cron class were rewritten; the observer listens to `sales_order_save_commit_after`. Custom plugins or preferences on them may need changes.
 - Theme overrides of `Partner_Module::script.phtml` and copies of `Partner_Module/js/partner` are deprecated; remove them after upgrading. They keep working meanwhile. The deprecated `Partner_Module/js/partner` reads the tracking parameters only from the URL and no longer needs jQuery.
 - The README names the right log file, `var/log/partner.log`.

@@ -119,23 +119,29 @@ class ExportStatus extends Field
     public function getStatus()
     {
         try {
-            $connection = $this->resource->getConnection();
+            // partner_module_export is a sales table (db_schema.xml resource="sales", as in Model\ExportQueue)
+            $salesConnection = $this->resource->getConnection(ExportQueue::RESOURCE);
 
             // COUNT per status over the (status, next_attempt_at) index; failed rows only from the display window.
             // last_attempt_at is written in UTC (gmdate), so the cut-off is computed in UTC as well.
             $failedSince = gmdate('Y-m-d H:i:s', time() - Exporter::FAILED_DISPLAY_DAYS * 86400);
-            $counts = $connection->fetchPairs(
-                $connection->select()
-                    ->from($this->resource->getTableName(ExportQueue::TABLE), ['status', 'COUNT(*)'])
+            $counts = $salesConnection->fetchPairs(
+                $salesConnection->select()
+                    ->from(
+                        $this->resource->getTableName(ExportQueue::TABLE, ExportQueue::RESOURCE),
+                        ['status', 'COUNT(*)']
+                    )
                     ->where(
-                        $connection->quoteInto('status = ?', ExportQueue::STATUS_RETRY) . ' OR ('
-                        . $connection->quoteInto('status = ?', ExportQueue::STATUS_FAILED) . ' AND '
-                        . $connection->quoteInto('last_attempt_at >= ?', $failedSince) . ')'
+                        $salesConnection->quoteInto('status = ?', ExportQueue::STATUS_RETRY) . ' OR ('
+                        . $salesConnection->quoteInto('status = ?', ExportQueue::STATUS_FAILED) . ' AND '
+                        . $salesConnection->quoteInto('last_attempt_at >= ?', $failedSince) . ')'
                     )
                     ->group('status')
             );
 
-            // Magento's DB session runs in UTC; cron_schedule times are UTC
+            // cron_schedule is on the default connection. Magento's DB session runs in UTC; cron_schedule times are
+            // UTC
+            $connection = $this->resource->getConnection();
             $lastRun = $connection->fetchOne(
                 $connection->select()
                     ->from($this->resource->getTableName('cron_schedule'), ['MAX(finished_at)'])

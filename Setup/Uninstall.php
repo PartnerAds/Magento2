@@ -5,12 +5,15 @@
 
 namespace Partner\Module\Setup;
 
+use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\DB\Adapter\AdapterInterface;
 use Magento\Framework\Setup\ModuleContextInterface;
+use Magento\Framework\Setup\Patch\PatchHistory;
 use Magento\Framework\Setup\SchemaSetupInterface;
 use Magento\Framework\Setup\UninstallInterface;
 use Partner\Module\Model\Attributes;
 use Partner\Module\Model\ExportQueue;
+use Partner\Module\Setup\Patch\Data\RemoveLegacyOrderAttributes;
 
 /**
  * Removes the module's data on `bin/magento module:uninstall -r Partner_Module` (Composer installs):
@@ -19,11 +22,14 @@ use Partner\Module\Model\ExportQueue;
  *   sales_order_grid);
  * - the module's configuration (core_config_data, paths partner_module/...);
  * - pending cron_schedule rows of the module's cron job;
- * - the unused EAV attribute rows that versions up to 2.3.x registered for the order entity type.
+ * - the unused EAV attribute rows that versions up to 2.3.x registered for the order entity type, and the patch_list
+ *   row of the data patch that removes them on upgrade (Magento only reverts revertable data patches).
  *
- * Only the setup connection is used (no EavSetup, which needs a data setup and fails here). Every step checks first
- * that there is something to remove, so it runs without errors on a partly or fully cleaned database.
- * var/partner/failed_export.csv is not touched. Magento itself removes the module's setup_module row.
+ * sales_order and partner_module_export are changed on the "sales" connection, as declared in db_schema.xml
+ * (resource="sales") and used by Model\ExportQueue; the other tables on the setup (default) connection. No EavSetup,
+ * which needs a data setup and fails here. Every step checks first that there is something to remove, so it runs
+ * without errors on a partly or fully cleaned database. var/partner/failed_export.csv is not touched. Magento itself
+ * removes the module's setup_module row.
  */
 class Uninstall implements UninstallInterface
 {
@@ -35,6 +41,19 @@ class Uninstall implements UninstallInterface
     const CRON_JOB_CODE = 'partner_export_orders_cron';
 
     /**
+     * @var ResourceConnection
+     */
+    private $resource;
+
+    /**
+     * @param ResourceConnection $resource
+     */
+    public function __construct(ResourceConnection $resource)
+    {
+        $this->resource = $resource;
+    }
+
+    /**
      * @param SchemaSetupInterface $setup
      * @param ModuleContextInterface $context
      * @return void
@@ -43,15 +62,20 @@ class Uninstall implements UninstallInterface
     {
         $setup->startSetup();
         try {
-            $connection = $setup->getConnection();
+            $salesConnection = $this->resource->getConnection(ExportQueue::RESOURCE);
 
             // The export table first: it has a foreign key to sales_order
-            $exportTable = $setup->getTable(ExportQueue::TABLE);
-            if ($connection->isTableExists($exportTable)) {
-                $connection->dropTable($exportTable);
+            $exportTable = $this->resource->getTableName(ExportQueue::TABLE, ExportQueue::RESOURCE);
+            if ($salesConnection->isTableExists($exportTable)) {
+                $salesConnection->dropTable($exportTable);
             }
 
-            $this->dropOrderColumns($connection, $setup->getTable('sales_order'));
+            $this->dropOrderColumns(
+                $salesConnection,
+                $this->resource->getTableName('sales_order', ExportQueue::RESOURCE)
+            );
+
+            $connection = $setup->getConnection();
 
             $configTable = $setup->getTable('core_config_data');
             if ($connection->isTableExists($configTable)) {
@@ -64,11 +88,18 @@ class Uninstall implements UninstallInterface
                 $connection->delete($cronTable, ['job_code = ?' => self::CRON_JOB_CODE]);
             }
 
-            $this->deleteEavAttributes(
+            RemoveLegacyOrderAttributes::deleteAttributeRows(
                 $connection,
                 $setup->getTable('eav_entity_type'),
                 $setup->getTable('eav_attribute')
             );
+
+            $patchTable = $setup->getTable(PatchHistory::TABLE_NAME);
+            if ($connection->isTableExists($patchTable)) {
+                $connection->delete($patchTable, [
+                    PatchHistory::CLASS_NAME . ' = ?' => RemoveLegacyOrderAttributes::class,
+                ]);
+            }
         } finally {
             $setup->endSetup();
         }
@@ -99,34 +130,6 @@ class Uninstall implements UninstallInterface
                 sprintf('ALTER TABLE %s %s', $connection->quoteIdentifier($table), implode(', ', $drops))
             );
             $connection->resetDdlCache($table);
-        }
-    }
-
-    /**
-     * Versions up to 2.3.x registered EAV attribute rows for the (non-EAV) order entity type on install; nothing
-     * reads them
-     *
-     * @param AdapterInterface $connection
-     * @param string $entityTypeTable
-     * @param string $attributeTable
-     * @return void
-     */
-    private function deleteEavAttributes(AdapterInterface $connection, $entityTypeTable, $attributeTable)
-    {
-        if (!$connection->isTableExists($entityTypeTable) || !$connection->isTableExists($attributeTable)) {
-            return;
-        }
-
-        $entityTypeId = $connection->fetchOne(
-            $connection->select()
-                ->from($entityTypeTable, ['entity_type_id'])
-                ->where('entity_type_code = ?', 'order')
-        );
-        if ($entityTypeId) {
-            $connection->delete($attributeTable, [
-                'entity_type_id = ?' => (int)$entityTypeId,
-                'attribute_code IN (?)' => self::ORDER_COLUMNS,
-            ]);
         }
     }
 }

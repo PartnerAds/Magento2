@@ -18,6 +18,12 @@ class ExportQueue
 {
     const TABLE = 'partner_module_export';
 
+    /**
+     * Connection resource of partner_module_export and sales_order (db_schema.xml resource="sales"); it falls back
+     * to the default connection when the shop has no separate sales database
+     */
+    const RESOURCE = 'sales';
+
     const STATUS_RETRY = 'retry';
     const STATUS_FAILED = 'failed';
 
@@ -234,7 +240,7 @@ class ExportQueue
      */
     private function getConnection()
     {
-        return $this->resource->getConnection('sales');
+        return $this->resource->getConnection(self::RESOURCE);
     }
 
     /**
@@ -242,7 +248,7 @@ class ExportQueue
      */
     private function getExportTable()
     {
-        return $this->resource->getTableName(self::TABLE, 'sales');
+        return $this->resource->getTableName(self::TABLE, self::RESOURCE);
     }
 
     /**
@@ -250,6 +256,6 @@ class ExportQueue
      */
     private function getOrderTable()
     {
-        return $this->resource->getTableName('sales_order', 'sales');
+        return $this->resource->getTableName('sales_order', self::RESOURCE);
     }
 }
