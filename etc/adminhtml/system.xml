@@ -11,6 +11,14 @@
             <resource>Partner_Module::system_config</resource>
             <group id="general" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
                 <label>Partner Ads Setup</label>
+                <field id="module_version" translate="label" sortOrder="1" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Module version</label>
+                    <frontend_model>Partner\Module\Block\Adminhtml\System\Config\ModuleVersion</frontend_model>
+                </field>
+                <field id="export_status" translate="label" sortOrder="2" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Export status</label>
+                    <frontend_model>Partner\Module\Block\Adminhtml\System\Config\ExportStatus</frontend_model>
+                </field>
                 <field id="program_id" translate="label comment" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Your Program ID</label>
                     <comment>Insert your Program ID here</comment>
@@ -31,8 +39,9 @@
                         <model>Partner\Module\Model\System\Config\Comment\DownloadLink</model>
                     </comment>
                 </field>
-                <field id="mode" translate="label" type="select" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
+                <field id="mode" translate="label comment" type="select" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Mode</label>
+                    <comment>Development is a dry run: nothing is sent to Partner-ads. Orders that reach the commit state are only written to var/log/partner.log and are never exported later. Use Production in a live shop.</comment>
                     <source_model>Partner\Module\Model\System\Config\Mode</source_model>
                 </field>
             </group>

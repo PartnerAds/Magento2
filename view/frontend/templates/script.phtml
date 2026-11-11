@@ -1,6 +1,9 @@
 <?php
-/** @var \Partner\Module\Block\Script $block */
+/**
+ * Loads the Partner-ads tracker. The output is the same on every page and for every request (no request values),
+ * so it is safe in Varnish and the built-in full-page cache; the tracker reads the tracking parameters in the browser.
+ *
+ * @var \Partner\Module\Block\Script $block
+ */
 ?>
-<script type="text/x-magento-init">
-    <?= /* @noEscape */ $block->getInitJson() ?>
-</script>
+<script src="<?= $block->escapeUrl($block->getViewFileUrl('Partner_Module::js/tracker.js')) ?>" defer data-endpoint="<?= $block->escapeUrl($block->getEndpointUrl()) ?>"></script>

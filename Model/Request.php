@@ -9,18 +9,27 @@ use Laminas\Http\Client\Adapter\Curl;
 use Laminas\Http\Client as LaminasHttpClient;
 use Laminas\Http\Request as LaminasHttpRequest;
 use Laminas\Stdlib\Parameters as LaminasRequestParameters;
-use Magento\Framework\App\Config\ScopeConfigInterface;
-use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
-use Magento\Store\Model\StoreManagerInterface;
 use Partner\Module\Api\ConfigInterface;
-use Partner\Module\Model\Logger\Logger;
 use Partner\Module\Model\System\Config\Mode;
 
+/**
+ * Builds the Partner-ads tracking request of an order, sends it and classifies the outcome.
+ * Bookkeeping (order flag, retry table, CSV, log) is done by Exporter.
+ */
 class Request
 {
+    /**
+     * Observer mode: the export runs in the request that saves the order, so it must be quick (seconds)
+     */
+    const OBSERVER_CONNECT_TIMEOUT = 3;
+    const OBSERVER_TIMEOUT = 5;
 
-    private $exporting = [];
+    /**
+     * Cron (seconds)
+     */
+    const CRON_CONNECT_TIMEOUT = 5;
+    const CRON_TIMEOUT = 10;
 
     /**
      * @var ConfigInterface
@@ -28,193 +37,236 @@ class Request
     private $config;
 
     /**
-     * @var OrderRepositoryInterface
+     * @var string
      */
-    private $orderRepository;
+    private $trackingUrl;
 
     /**
-     * @var StoreManagerInterface
-     */
-    private $storeManager;
-
-    /**
-     * @var  ScopeConfigInterface
-     */
-    protected $scopeConfig;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-    /**
-     * Request constructor.
-     *
      * @param ConfigInterface $config
-     * @param OrderRepositoryInterface $orderRepository
-     * @param StoreManagerInterface $storeManager
-     * @param ScopeConfigInterface $scopeConfig
-     * @param Logger $logger
+     * @param string $trackingUrl Partner-ads endpoint, set in etc/di.xml (tests point it at a local mock)
      */
     public function __construct(
         ConfigInterface $config,
-        OrderRepositoryInterface $orderRepository,
-        StoreManagerInterface $storeManager,
-        ScopeConfigInterface $scopeConfig,
-        Logger $logger
+        $trackingUrl = Mode::TRACKING_URL
     ) {
         $this->config = $config;
-        $this->orderRepository = $orderRepository;
-        $this->storeManager = $storeManager;
-        $this->scopeConfig = $scopeConfig;
-        $this->logger = $logger;
+        $this->trackingUrl = (string)$trackingUrl;
+    }
+
+    /**
+     * @return string
+     */
+    public function getTrackingUrl()
+    {
+        return $this->trackingUrl;
     }
 
     /**
      * @param Order $order
-     *
-     * @throws SkipMessage
-     *
-     * @return bool
+     * @return array
+     * @throws SkipMessage when the data can't be built; it carries the partial data for the CSV
      */
-    public function send(Order $order)
+    public function buildExportData(Order $order)
     {
         $store = $order->getStore();
-
-        $programId = $this->config->getProgramId($store);
-        $type = $this->config->getProgramType($store);
-        $commitAtOrderStateSetting = $this->config->getProgramOrderState($store);
-
-        $requestUri = $this->config->getMode($store);
-        $requestUri = Mode::TRACKING_URL;
-        $this->debuggerOn("Endpoint = ".$requestUri, $this->config->getMode($store));
-        // Set at least a default status when none/false/empty is given (set to STATE_PROCESSING)
-        if (empty($commitAtOrderStateSetting) || ! $commitAtOrderStateSetting) {
-            $commitAtOrderState = Order::STATE_PROCESSING;
-        } else {
-            $commitAtOrderState = $commitAtOrderStateSetting;
-        }
-
-        if (empty($programId)) {
-            $this->debuggerOn(
-                'Cannot Export: #' . $order->getIncrementId() .
-                ' Because Store: ' . $store->getCode() . ' Is missing valid "program_id".',
-                $this->config->getMode($store)
-            );
-
-            throw new SkipMessage('Cannot Export: #' . $order->getIncrementId() . ' Because Store: ' . $store->getCode() . ' Is missing valid "program_id".'); // @codingStandardsIgnoreLine
-        }
-
-        if (empty($type)) {
-            $this->debuggerOn(
-                'Cannot Export: #' . $order->getIncrementId() .
-                ' Because Store: ' . $store->getCode() . ' Is missing valid "program_type".',
-                $this->config->getMode($store)
-            );
-
-            throw new SkipMessage('Cannot Export: #' . $order->getIncrementId() . ' Because Store: ' . $store->getCode() . ' Is missing valid "program_type".'); // @codingStandardsIgnoreLine
-        }
-
-        if ($order->getState() !== $commitAtOrderState) {
-            $this->debuggerOn('Cannot Export: #' . $order->getIncrementId() .
-            ' Because Order State: "' . $order->getState() .
-            '" is not equal to Commit State: "' . $commitAtOrderState .
-            '".', $this->config->getMode($store));
-
-            throw new SkipMessage('Cannot Export: #' . $order->getIncrementId() . ' Because Order State: "' . $order->getState() . '" is not equal to Commit State: "' . $commitAtOrderState . '".'); // @codingStandardsIgnoreLine
-        }
-
-        if (0 != $order->getData(Attributes::ORDER_SENT)) {
-            $this->debuggerOn('Cannot Export: #' . $order->getIncrementId() .
-            ' Because it is already sent.');
-
-            throw new SkipMessage('Cannot Export: #' . $order->getIncrementId() . ' Because it is already sent.'); // @codingStandardsIgnoreLine
-        }
-
-        if (! $order->hasData(Attributes::PARTNER_ID) || empty($order->getData(Attributes::PARTNER_ID))) {
-            $this->debuggerOn('Cannot Export: #' . $order->getIncrementId() .
-            ' It is missing a valid value in attribute "' . Attributes::PARTNER_ID .
-            '".', $this->config->getMode($store));
-
-            throw new SkipMessage('Cannot Export: #' . $order->getIncrementId() . ' It is missing a valid value in attribute "' . Attributes::PARTNER_ID . '".'); // @codingStandardsIgnoreLine
-        }
-
-        if (! filter_var($requestUri, FILTER_VALIDATE_URL)) {
-            $this->debuggerOn('Cannot Export: #' . $order->getIncrementId() .
-            ' Because Store: ' . $store->getCode() . ' Is missing valid "mode".', $this->config->getMode($store));
-
-            throw new SkipMessage('Cannot Export: #' . $order->getIncrementId() . ' Because Store: ' . $store->getCode() . ' Is missing valid "mode".'); // @codingStandardsIgnoreLine
-        }
-
-        if (in_array($order->getId(), $this->exporting)) {
-            $this->debuggerOn('Cannot Export: #' . $order->getIncrementId() .
-            'Because it is already exported.', $this->config->getMode($store));
-
-            throw new SkipMessage('Cannot Export: #' . $order->getIncrementId() . 'Because it is already exported.'); // @codingStandardsIgnoreLine
-        }
-        $this->exporting[] = $order->getId();
-
-        $partnerId = $order->getData(Attributes::PARTNER_ID);
-        $pacid = $order->getData(Attributes::PACID);
-
-        $request = new LaminasHttpRequest();
-        $request->setMethod(LaminasHttpRequest::METHOD_GET);
-        $request->setUri($requestUri);
+        $programId = (string)$this->config->getProgramId($store);
+        $type = (string)$this->config->getProgramType($store);
+        $partnerId = (string)$order->getData(Attributes::PARTNER_ID);
+        $pacid = (string)$order->getData(Attributes::PACID);
 
         $exportData = [
-           'programid' => $programId,
-           'type' => $type,
-           'partnerid' => $partnerId,
-           'pacid' => $pacid ? $pacid : '',
-           'ordreid' => $order->getRealOrderId(),
-           'varenummer' => 'x',
-           'antal' => 1,
-           'omprsalg' => $order->getGrandTotal() - $order->getShippingInclTax(),
+            'programid' => $programId,
+            'type' => $type,
+            'partnerid' => $partnerId,
+            'pacid' => $pacid,
+            'ordreid' => $order->getRealOrderId(),
+            'varenummer' => 'x',
+            'antal' => 1,
+            'omprsalg' => $order->getGrandTotal() - $order->getShippingInclTax(),
         ];
 
-        $this->debuggerOn("Request=".json_encode($exportData), $this->config->getMode($store));
+        $missing = null;
+        if ($programId === '') {
+            $missing = 'program_id is not configured for store ' . $store->getCode();
+        } elseif ($type === '') {
+            $missing = 'program_type is not configured for store ' . $store->getCode();
+        } elseif ($partnerId === '') {
+            $missing = 'the order has no partner ID';
+        }
 
-        $parameters = new LaminasRequestParameters($exportData);
-        $request->setQuery($parameters);
+        if ($missing !== null) {
+            $skip = new SkipMessage('Cannot build export data: ' . $missing);
+            $skip->setExportData($exportData);
+            throw $skip;
+        }
 
-        $client = new LaminasHttpClient();
-        $options = [
-           'adapter' => Curl::class,
-           'curloptions' => [CURLOPT_FOLLOWLOCATION => true],
-           'maxredirects' => 0,
-           'timeout' => 10,
-        ];
-        $client->setOptions($options);
+        return $exportData;
+    }
 
-        $response = $client->send($request);
-        $this->debuggerOn("Response=".$response, $this->config->getMode($store));
+    /**
+     * The full request URL, as sent
+     *
+     * @param array $exportData
+     * @return string
+     */
+    public function getRequestUri(array $exportData)
+    {
+        $separator = strpos($this->trackingUrl, '?') === false ? '?' : '&';
+        return $this->trackingUrl . $separator . http_build_query($exportData, '', '&');
+    }
 
-        $responseNumber = floor($response->getStatusCode() / 100);
+    /**
+     * Sends the export and classifies the outcome. Never throws.
+     *
+     * @param array $exportData
+     * @param int $connectTimeout seconds
+     * @param int $timeout seconds, whole request
+     * @return ExportResult
+     */
+    public function send(array $exportData, $connectTimeout, $timeout)
+    {
+        if (!filter_var($this->trackingUrl, FILTER_VALIDATE_URL)) {
+            return new ExportResult(ExportResult::FAILED, 'invalid tracking URL', null, 0, 'config');
+        }
 
-        if (2 == $responseNumber) {//check if response code is a 2XX code
-            $order->setData(Attributes::ORDER_SENT, 1);
-            $this->orderRepository->save($order);
+        $start = microtime(true);
+        $client = null;
+        try {
+            $request = new LaminasHttpRequest();
+            $request->setMethod(LaminasHttpRequest::METHOD_GET);
+            $request->setUri($this->trackingUrl);
+            $request->setQuery(new LaminasRequestParameters($exportData));
 
-            $key = array_search($order->getId(), $this->exporting);
+            $client = new LaminasHttpClient();
+            $client->setOptions([
+                'adapter' => Curl::class,
+                'curloptions' => [
+                    CURLOPT_FOLLOWLOCATION => true,
+                    // Applied after the adapter's own timeouts, so this one sets the connect timeout
+                    CURLOPT_CONNECTTIMEOUT_MS => (int)($connectTimeout * 1000),
+                ],
+                'maxredirects' => 0,
+                'timeout' => (int)$timeout,
+            ]);
 
-            if (false !== $key) {
-                unset($this->exporting[$key]);
-            }
+            $response = $client->send($request);
+        } catch (\Throwable $e) {
+            return $this->transportError($client, $e, $this->elapsedMs($start));
+        }
 
-            return true;
-        } else {
-            $failedExportException = new SkipMessage('Failed to export: #' . $order->getIncrementId() . '. Response: "' . $response->renderStatusLine() . '".'); // @codingStandardsIgnoreLine
+        $durationMs = $this->elapsedMs($start);
+        $code = (int)$response->getStatusCode();
 
-            $failedExportException->setExportData($exportData);
+        if ($code >= 200 && $code < 300) {
+            return new ExportResult(ExportResult::SENT, 'HTTP ' . $code, $code, $durationMs);
+        }
 
-            throw $failedExportException;
+        if ($code >= 400 && $code < 500 && $code !== 429) {
+            return new ExportResult(ExportResult::FAILED, 'HTTP ' . $code, $code, $durationMs, 'http');
+        }
+
+        // 5xx, 429 and anything else that is not a definite answer
+        return new ExportResult(ExportResult::RETRY, 'HTTP ' . $code, $code, $durationMs, 'http');
+    }
+
+    /**
+     * Error class of a curl failure, for the log and the retry table
+     *
+     * @param int $errno curl error number (0 = not a curl error)
+     * @param string $error curl error message
+     * @param float|null $connectTime CURLINFO_CONNECT_TIME (0 = the connection was never made)
+     * @param int $osErrno CURLINFO_OS_ERRNO, e.g. 111 = connection refused
+     * @return string
+     */
+    public static function getErrorClass($errno, $error, $connectTime, $osErrno = 0)
+    {
+        switch ((int)$errno) {
+            case 0:
+                return 'error';
+            case 5:     // CURLE_COULDNT_RESOLVE_PROXY
+            case 6:     // CURLE_COULDNT_RESOLVE_HOST
+                return 'dns failure';
+            case 7:     // CURLE_COULDNT_CONNECT
+                if ((int)$osErrno === 111 || stripos((string)$error, 'refused') !== false) {
+                    return 'connection refused';
+                }
+                return 'connection failed';
+            case 28:    // CURLE_OPERATION_TIMEDOUT
+                if (stripos((string)$error, 'resolv') !== false) {
+                    return 'dns timeout';
+                }
+                if (preg_match('/\b(SSL|TLS)\b/i', (string)$error)) {
+                    return 'tls timeout';
+                }
+                return empty($connectTime) ? 'connect timeout' : 'read timeout';
+            case 35:    // SSL connect error
+            case 51:
+            case 53:
+            case 54:
+            case 58:
+            case 59:
+            case 60:    // peer certificate cannot be authenticated
+            case 64:
+            case 66:
+            case 77:
+            case 80:
+            case 82:
+            case 83:
+            case 90:
+            case 91:
+                return 'tls failure';
+            case 8:     // CURLE_WEIRD_SERVER_REPLY
+            case 18:    // CURLE_PARTIAL_FILE: response cut off
+            case 52:    // CURLE_GOT_NOTHING
+            case 55:    // CURLE_SEND_ERROR
+            case 56:    // CURLE_RECV_ERROR
+            case 61:    // CURLE_BAD_CONTENT_ENCODING
+                return 'incomplete response';
+            default:
+                return 'curl error';
         }
     }
 
-    public function debuggerOn($str, $requestUri = null)
+    /**
+     * @param LaminasHttpClient|null $client
+     * @param \Throwable $exception
+     * @param int $durationMs
+     * @return ExportResult
+     */
+    private function transportError($client, \Throwable $exception, $durationMs)
     {
-        if ($requestUri == Mode::DEBUG_URL) {
-            $this->logger->info($str);
+        $errno = 0;
+        $error = '';
+        $connectTime = null;
+        $osErrno = 0;
+
+        try {
+            $adapter = $client instanceof LaminasHttpClient ? $client->getAdapter() : null;
+            $handle = $adapter instanceof Curl ? $adapter->getHandle() : null;
+            if ($handle) {
+                $errno = curl_errno($handle);
+                $error = curl_error($handle);
+                $connectTime = curl_getinfo($handle, CURLINFO_CONNECT_TIME);
+                $osErrno = (int)curl_getinfo($handle, CURLINFO_OS_ERRNO);
+            }
+        } catch (\Throwable $ignored) {
+            $errno = 0;
         }
+
+        $class = self::getErrorClass($errno, $error, $connectTime, $osErrno);
+        $detail = $errno
+            ? 'curl ' . $errno . ': ' . $error
+            : get_class($exception) . ': ' . $exception->getMessage();
+
+        return new ExportResult(ExportResult::RETRY, $class . ' (' . $detail . ')', null, $durationMs, $class);
+    }
+
+    /**
+     * @param float $start
+     * @return int
+     */
+    private function elapsedMs($start)
+    {
+        return (int)round((microtime(true) - $start) * 1000);
     }
 }
