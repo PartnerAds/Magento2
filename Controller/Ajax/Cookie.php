@@ -7,12 +7,19 @@ namespace Partner\Module\Controller\Ajax;
 
 use Magento\Framework\App\Action\Action;
 use Magento\Framework\App\Action\Context;
+use Magento\Framework\App\Response\Http as HttpResponse;
 use Partner\Module\Model\TrackingCookieManager;
 use Magento\Framework\HTTP\PhpEnvironment\RemoteAddress;
 use Psr\Log\LoggerInterface;
 
 class Cookie extends Action
 {
+    /**
+     * Full action name of this endpoint (route id papartner, controller ajax, action cookie). The plugins
+     * Model\Plugin\CookieEndpoint\* use it to keep its response uncacheable until it is sent.
+     */
+    const FULL_ACTION_NAME = 'papartner_ajax_cookie';
+
     /**
      * @var TrackingCookieManager
      */
@@ -43,6 +50,14 @@ class Cookie extends Action
      */
     public function execute()
     {
+        // The response sets cookies, so no cache may store it: Varnish (Magento's VCL) and the built-in full-page
+        // cache drop Set-Cookie from responses they cache. Another module can still make the response public later
+        // in the request (e.g. by building the page layout); Model\Plugin\CookieEndpoint\* apply these headers again.
+        $response = $this->getResponse();
+        if ($response instanceof HttpResponse) {
+            $response->setNoCacheHeaders();
+        }
+
         try {
             $partner = TrackingCookieManager::filterPartnerId($this->getRequest()->getParam('partnerId'));
             $pacId = TrackingCookieManager::filterPacId($this->getRequest()->getParam('pacId'));
