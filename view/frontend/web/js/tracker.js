@@ -163,9 +163,25 @@
     }
 
     /**
+     * Reads the body of a fetch response and drops it, so the request also finishes for answers that carry a body,
+     * e.g. an error page: an unread body can keep the request open as long as the page lives. Never throws.
+     *
+     * @param {Response} response
+     */
+    function discard(response) {
+        try {
+            if (response && typeof response.text === 'function') {
+                response.text().then(null, function () {});
+            }
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    /**
      * GET the cookie endpoint; fetch where available, otherwise XMLHttpRequest. Each attempt gets a fresh "_"
      * timestamp. After a network error, HTTP 429 or 5xx the request is sent once more after RETRY_DELAY ms, so there
-     * are at most MAX_ATTEMPTS requests. Errors are ignored.
+     * are at most MAX_ATTEMPTS requests. Response bodies are read and dropped. Errors are ignored.
      *
      * @param {string} url endpoint with partnerId / pacId, without "_"
      * @param {number} attempt 1 for the first request
@@ -193,6 +209,7 @@
                     cache: 'no-store',
                     keepalive: true
                 }).then(function (response) {
+                    discard(response);
                     done(response && response.status);
                 }, function () {
                     done(0);

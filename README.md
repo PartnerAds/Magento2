@@ -91,12 +91,26 @@ The module adds one small script to every storefront page: `Partner_Module/js/tr
 
 - The page HTML is the same with and without the tracking parameters, so pages can be cached in Varnish or the built-in full-page cache. The tracker reads `pa-partnerid` and `pacid` from the URL in the browser.
 - Invalid values are ignored in the browser. With a valid partner ID, the tracker makes one request to `/papartner/ajax/cookie/`, which validates the values again and sets the `partner_id` and `pacid` cookies.
-- Theme overrides: if your theme overrides `Partner_Module::script.phtml` or has its own copy of `Partner_Module/js/partner` (for example for Breeze), remove them after upgrading to 2.4.0. They keep working meanwhile, but only the module's own template is cache-safe and theme-independent. On Hyvä, the old `text/x-magento-init` template never ran.
+- The answer of `/papartner/ajax/cookie/` is always sent as not cacheable (since 2.4.1), also when another module makes the response cacheable later in the request. Varnish and the built-in full-page cache then pass its cookies on to the browser. If you put a CDN or your own cache rules in front of the shop, don't cache `/papartner/` either.
+- Theme overrides: if your theme overrides `Partner_Module::script.phtml` or has its own copy of `Partner_Module/js/partner` (for example for Breeze), remove them after upgrading to 2.4.0. They keep working meanwhile, but only the module's own template is cache-safe and theme-independent. On Hyvä, the old `text/x-magento-init` template never ran. Breeze needs no integration module (see "Upgrading from 2.3.x").
 - Magento's Content Security Policy needs nothing extra, also on the checkout pages: the tracker is a static file without inline code, and its request goes to the shop's own domain.
+
+### Upgrading from 2.4.0
+
+```bash
+composer update partnerads/magento2
+bin/magento setup:upgrade
+# production mode:
+bin/magento setup:di:compile
+bin/magento setup:static-content:deploy   # Partner_Module/js/tracker.js changed in 2.4.1
+bin/magento cache:flush                   # and purge Varnish / your CDN
+```
+
+Cached pages keep loading the old tracker until the full-page cache, Varnish or the CDN is flushed. Nothing else changes: no database changes, no new settings.
 
 ### Upgrading from 2.3.x
 
-2.4.0 is one update from 2.3.x. Before upgrading:
+2.4.x is one update from 2.3.x. Before upgrading:
 
 - **Magento 2.3.5 or later** is required (see Requirements).
 - **Headless / PWA shops:** the PartnerAds GraphQL query has been removed. Orders get partner data only from the `partner_id` and `pacid` cookies, which are set on the storefront domain when a visitor arrives through a partner link. Check that these cookies reach the request that places the order (same domain as the storefront) before you upgrade.
@@ -117,6 +131,7 @@ After upgrading:
 
 - **Magento cron** must run, so that failed exports are retried (see "Export to Partner-ads").
 - **Themes:** if your theme overrides `Partner_Module::script.phtml`, or has its own copy of `Partner_Module/js/partner` (for example a Breeze component or a Hyvä version), remove the override or copy. The module's own template works on Luma, Breeze and Hyvä. An old override keeps working meanwhile, but its page still contains the tracking parameters, and a copy of the script may send a second request.
+- **Breeze:** Swissup's integration module `swissup/module-breeze-partnerads-magento2` is not needed from 2.4.0. It registers the old `Partner_Module/js/partner` component for Breeze, and the module no longer outputs that component; the tracker runs on Breeze by itself. Left installed, it does no harm. To remove it: `composer remove swissup/module-breeze-partnerads-magento2`, then `bin/magento setup:upgrade` (in production mode also `setup:di:compile`, `setup:static-content:deploy` and `cache:flush`).
 - **Consent or cookie tools** that look for the old `text/x-magento-init` block with `Partner_Module/js/partner` must look for `script[src*="Partner_Module/js/tracker"]` instead.
 - **Mode `Development`** is now a dry run that sends nothing. Make sure a live shop is set to `Production`.
 
@@ -153,6 +168,13 @@ Run `bin/magento setup:di:compile` and `bin/magento cache:flush` afterwards in p
 Set `Mode` back to `Production` afterwards. In `Production`, `var/log/partner.log` has one line per export and per failed attempt.
 
 ## Changelog
+
+### 2.4.1
+
+- The cookie endpoint `/papartner/ajax/cookie/` is always sent as not cacheable. Before, another module that made responses cacheable later in the request (for example by building the page layout) could make Varnish or the built-in full-page cache drop the `partner_id` and `pacid` cookies, so the visitor's orders were not attributed to the partner. Recommended for all shops with Varnish or the full-page cache.
+- The tracker reads the answer of its cookie request also when it is an error, so the request always completes in the browser.
+- README: Breeze shops don't need Swissup's `swissup/module-breeze-partnerads-magento2` from 2.4.0 on (see "Upgrading from 2.3.x").
+- Upgrade with `composer update partnerads/magento2` and `bin/magento setup:upgrade`. In production mode, also run `setup:di:compile` and `setup:static-content:deploy`, because the tracker script changed (see "Upgrading from 2.4.0").
 
 ### 2.4.0
 
